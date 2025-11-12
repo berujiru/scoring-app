@@ -87,3 +87,57 @@ export const eventsApi = {
   delete: (id: number) =>
     apiClient.delete(`/events/${id}`),
 }
+
+// Contestants endpoints
+export const contestantsApi = {
+  getByEvent: (eventId: number) =>
+    apiClient.get(`/contestants/event/${eventId}`),
+
+  getById: (id: number) =>
+    apiClient.get(`/contestants/${id}`),
+
+  create: (data: { name: string; eventId: number }) =>
+    apiClient.post('/contestants', data),
+
+  update: (id: number, data: any) =>
+    apiClient.put(`/contestants/${id}`, data),
+
+  delete: (id: number) =>
+    apiClient.delete(`/contestants/${id}`),
+}
+
+// Judges endpoints
+export const judgesApi = {
+  getByEvent: (eventId: number) =>
+    apiClient.get(`/judges/event/${eventId}`),
+
+  getById: (id: number) =>
+    apiClient.get(`/judges/${id}`),
+
+  create: (data: { name: string; eventId: number; userId: number }) =>
+    apiClient.post('/judges', data),
+
+  update: (id: number, data: any) =>
+    apiClient.put(`/judges/${id}`, data),
+
+  delete: (id: number) =>
+    apiClient.delete(`/judges/${id}`),
+}
+
+// Criteria endpoints
+export const criteriaApi = {
+  getByEvent: (eventId: number) =>
+    apiClient.get(`/criteria/event/${eventId}`),
+
+  getById: (id: number) =>
+    apiClient.get(`/criteria/${id}`),
+
+  create: (data: { name: string; percentage: number; eventId: number }) =>
+    apiClient.post('/criteria', data),
+
+  update: (id: number, data: any) =>
+    apiClient.put(`/criteria/${id}`, data),
+
+  delete: (id: number) =>
+    apiClient.delete(`/criteria/${id}`),
+}

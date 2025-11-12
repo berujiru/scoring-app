@@ -1,18 +1,48 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { eventsApi } from '../api/client'
+import { eventsApi, contestantsApi, judgesApi, criteriaApi } from '../api/client'
+import { useAuth } from '../hooks/useAuth'
 import { EventCardData } from '../components/EventCard'
+import EditEventModal from '../components/EditEventModal'
+import AddContestantModal from '../components/AddContestantModal'
+import AddJudgeModal from '../components/AddJudgeModal'
+import AddCriteriaModal from '../components/AddCriteriaModal'
+import EditContestantModal from '../components/EditContestantModal'
+import EditJudgeModal from '../components/EditJudgeModal'
+import EditCriteriaModal from '../components/EditCriteriaModal'
 
 export default function EventDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [event, setEvent] = useState<EventCardData & {
     contestants?: Array<{ id: number; name: string }>
-    judges?: Array<{ id: number; name: string }>
+    judges?: Array<{ id: number; name: string; code: string }>
     criteria?: Array<{ id: number; name: string; percentage: number }>
   } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  
+  // Modal states
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isAddContestantModalOpen, setIsAddContestantModalOpen] = useState(false)
+  const [isAddJudgeModalOpen, setIsAddJudgeModalOpen] = useState(false)
+  const [isAddCriteriaModalOpen, setIsAddCriteriaModalOpen] = useState(false)
+  const [deletingItemId, setDeletingItemId] = useState<number | null>(null)
+  const [deletingItemType, setDeletingItemType] = useState<'contestant' | 'judge' | 'criteria' | null>(null)
+  // Per-item edit modal states
+  const [isEditContestantOpen, setIsEditContestantOpen] = useState(false)
+  const [editingContestantId, setEditingContestantId] = useState<number | null>(null)
+  const [editingContestantName, setEditingContestantName] = useState<string>('')
+
+  const [isEditJudgeOpen, setIsEditJudgeOpen] = useState(false)
+  const [editingJudgeId, setEditingJudgeId] = useState<number | null>(null)
+  const [editingJudgeName, setEditingJudgeName] = useState<string>('')
+
+  const [isEditCriteriaOpen, setIsEditCriteriaOpen] = useState(false)
+  const [editingCriteriaId, setEditingCriteriaId] = useState<number | null>(null)
+  const [editingCriteriaName, setEditingCriteriaName] = useState<string>('')
+  const [editingCriteriaPercentage, setEditingCriteriaPercentage] = useState<number>(0)
 
   useEffect(() => {
     const fetchEventDetail = async () => {
@@ -31,6 +61,36 @@ export default function EventDetail() {
 
     fetchEventDetail()
   }, [id])
+
+  const handleRefresh = async () => {
+    if (!id) return
+    try {
+      const response = await eventsApi.getById(parseInt(id))
+      setEvent(response.data)
+    } catch (err: any) {
+      console.error('Failed to refresh event', err)
+    }
+  }
+
+  const handleDeleteItem = async () => {
+    if (!deletingItemId || !deletingItemType) return
+    
+    try {
+      if (deletingItemType === 'contestant') {
+        await contestantsApi.delete(deletingItemId)
+      } else if (deletingItemType === 'judge') {
+        await judgesApi.delete(deletingItemId)
+      } else if (deletingItemType === 'criteria') {
+        await criteriaApi.delete(deletingItemId)
+      }
+      
+      setDeletingItemId(null)
+      setDeletingItemType(null)
+      await handleRefresh()
+    } catch (err: any) {
+      console.error('Failed to delete item', err)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -95,9 +155,17 @@ export default function EventDetail() {
               </span>
             )}
           </div>
-          <button className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">
-            Edit
-          </button>
+          {user && event.user && user.id === event.user.id && (
+            <button
+              onClick={() => setIsEditModalOpen(true)}
+              className="px-4 py-2 text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center gap-2 font-medium"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Edit Event
+            </button>
+          )}
         </div>
 
         {event.description && (
@@ -174,22 +242,73 @@ export default function EventDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Contestants Section */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
+          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
             <h3 className="font-semibold text-gray-900">Contestants</h3>
+            {user && event.user && user.id === event.user.id && (
+              <button
+                onClick={() => setIsAddContestantModalOpen(true)}
+                className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 flex items-center gap-1 font-medium"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add
+              </button>
+            )}
           </div>
           <div className="divide-y divide-gray-200">
             {event.contestants && event.contestants.length > 0 ? (
               event.contestants.map((contestant) => (
-                <div key={contestant.id} className="px-6 py-3 flex items-center justify-between hover:bg-gray-50">
+                <div key={contestant.id} className="px-6 py-3 flex items-center justify-between hover:bg-gray-50 group">
                   <p className="text-gray-900 font-medium">{contestant.name}</p>
-                  <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                    ID: {contestant.id}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                      ID: {contestant.id}
+                    </span>
+                    {user && event.user && user.id === event.user.id && (
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => {
+                                  setEditingContestantId(contestant.id)
+                                  setEditingContestantName(contestant.name)
+                                  setIsEditContestantOpen(true)
+                                }}
+                                className="text-indigo-600 hover:text-indigo-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="Edit contestant"
+                              >
+                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 11l6-6 3 3-6 6H9v-3z" />
+                                </svg>
+                              </button>
+
+                              <button
+                                onClick={() => {
+                                  setDeletingItemId(contestant.id)
+                                  setDeletingItemType('contestant')
+                                }}
+                                className="text-red-600 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="Delete contestant"
+                              >
+                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
+                    )}
+                  </div>
                 </div>
               ))
             ) : (
               <div className="px-6 py-8 text-center text-gray-500">
                 No contestants yet
+                {user && event.user && user.id === event.user.id && (
+                  <button
+                    onClick={() => setIsAddContestantModalOpen(true)}
+                    className="block mx-auto mt-3 px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 font-medium"
+                  >
+                    Add First Contestant
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -197,22 +316,80 @@ export default function EventDetail() {
 
         {/* Judges Section */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
+          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
             <h3 className="font-semibold text-gray-900">Judges</h3>
+            {user && event.user && user.id === event.user.id && (
+              <button
+                onClick={() => setIsAddJudgeModalOpen(true)}
+                className="px-3 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 flex items-center gap-1 font-medium"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add
+              </button>
+            )}
           </div>
           <div className="divide-y divide-gray-200">
             {event.judges && event.judges.length > 0 ? (
               event.judges.map((judge) => (
-                <div key={judge.id} className="px-6 py-3 flex items-center justify-between hover:bg-gray-50">
-                  <p className="text-gray-900 font-medium">{judge.name}</p>
-                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                    ID: {judge.id}
-                  </span>
+                <div key={judge.id} className="px-6 py-3 flex items-center justify-between hover:bg-gray-50 group">
+                  <div className="flex-1">
+                    <p className="text-gray-900 font-medium">{judge.name}</p>
+                    {judge.code && (
+                      <p className="text-xs text-gray-500 font-mono">
+                        Code: <span className="text-purple-600 font-semibold">{judge.code}</span>
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                      ID: {judge.id}
+                    </span>
+                    {user && event.user && user.id === event.user.id && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            setEditingJudgeId(judge.id)
+                            setEditingJudgeName(judge.name)
+                            setIsEditJudgeOpen(true)
+                          }}
+                          className="text-indigo-600 hover:text-indigo-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Edit judge"
+                        >
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 11l6-6 3 3-6 6H9v-3z" />
+                          </svg>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setDeletingItemId(judge.id)
+                            setDeletingItemType('judge')
+                          }}
+                          className="text-red-600 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Delete judge"
+                        >
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))
             ) : (
               <div className="px-6 py-8 text-center text-gray-500">
                 No judges yet
+                {user && event.user && user.id === event.user.id && (
+                  <button
+                    onClick={() => setIsAddJudgeModalOpen(true)}
+                    className="block mx-auto mt-3 px-4 py-2 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 font-medium"
+                  >
+                    Add First Judge
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -221,27 +398,71 @@ export default function EventDetail() {
 
       {/* Criteria Section */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <h3 className="font-semibold text-gray-900">Scoring Criteria</h3>
+          {user && event.user && user.id === event.user.id && (
+            <button
+              onClick={() => setIsAddCriteriaModalOpen(true)}
+              className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 flex items-center gap-1 font-medium"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add
+            </button>
+          )}
         </div>
         {event.criteria && event.criteria.length > 0 ? (
           <div className="divide-y divide-gray-200">
             {event.criteria.map((criterion) => (
-              <div key={criterion.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
-                <div>
+              <div key={criterion.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 group">
+                <div className="flex-1">
                   <p className="font-medium text-gray-900">{criterion.name}</p>
                   <p className="text-sm text-gray-600">Weight: {criterion.percentage}%</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-24 bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-indigo-600 h-2 rounded-full"
-                      style={{ width: `${criterion.percentage}%` }}
-                    ></div>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-24 bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-indigo-600 h-2 rounded-full"
+                        style={{ width: `${criterion.percentage}%` }}
+                      ></div>
+                    </div>
+                    <span className="text-sm font-medium text-gray-700 w-12">
+                      {criterion.percentage}%
+                    </span>
                   </div>
-                  <span className="text-sm font-medium text-gray-700 w-12">
-                    {criterion.percentage}%
-                  </span>
+                  {user && event.user && user.id === event.user.id && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setEditingCriteriaId(criterion.id)
+                          setEditingCriteriaName(criterion.name)
+                          setEditingCriteriaPercentage(criterion.percentage)
+                          setIsEditCriteriaOpen(true)
+                        }}
+                        className="text-indigo-600 hover:text-indigo-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Edit criteria"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 11l6-6 3 3-6 6H9v-3z" />
+                        </svg>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setDeletingItemId(criterion.id)
+                          setDeletingItemType('criteria')
+                        }}
+                        className="text-red-600 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Delete criteria"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -249,9 +470,115 @@ export default function EventDetail() {
         ) : (
           <div className="px-6 py-8 text-center text-gray-500">
             No scoring criteria defined yet
+            {user && event.user && user.id === event.user.id && (
+              <button
+                onClick={() => setIsAddCriteriaModalOpen(true)}
+                className="block mx-auto mt-3 px-4 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 font-medium"
+              >
+                Add First Criteria
+              </button>
+            )}
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deletingItemId && deletingItemType && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-sm w-full">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-bold text-gray-900">Confirm Delete</h2>
+            </div>
+            <div className="p-6">
+              <p className="text-gray-700">Are you sure you want to delete this {deletingItemType}? This action cannot be undone.</p>
+            </div>
+            <div className="flex gap-3 px-6 py-4 border-t border-gray-200 justify-end">
+              <button
+                onClick={() => {
+                  setDeletingItemId(null)
+                  setDeletingItemType(null)
+                }}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteItem}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modals */}
+      {event && (
+        <>
+          <EditEventModal
+            isOpen={isEditModalOpen}
+            onClose={() => setIsEditModalOpen(false)}
+            onSuccess={handleRefresh}
+            eventId={event.id}
+            initialName={event.name}
+            initialDescription={event.description || undefined}
+          />
+          <AddContestantModal
+            isOpen={isAddContestantModalOpen}
+            onClose={() => setIsAddContestantModalOpen(false)}
+            onSuccess={handleRefresh}
+            eventId={event.id}
+          />
+          <AddJudgeModal
+            isOpen={isAddJudgeModalOpen}
+            onClose={() => setIsAddJudgeModalOpen(false)}
+            onSuccess={handleRefresh}
+            eventId={event.id}
+          />
+          <AddCriteriaModal
+            isOpen={isAddCriteriaModalOpen}
+            onClose={() => setIsAddCriteriaModalOpen(false)}
+            onSuccess={handleRefresh}
+            eventId={event.id}
+          />
+          <EditContestantModal
+            isOpen={isEditContestantOpen}
+            onClose={() => {
+              setIsEditContestantOpen(false)
+              setEditingContestantId(null)
+              setEditingContestantName('')
+            }}
+            onSuccess={handleRefresh}
+            contestantId={editingContestantId || 0}
+            initialName={editingContestantName}
+          />
+          <EditJudgeModal
+            isOpen={isEditJudgeOpen}
+            onClose={() => {
+              setIsEditJudgeOpen(false)
+              setEditingJudgeId(null)
+              setEditingJudgeName('')
+            }}
+            onSuccess={handleRefresh}
+            judgeId={editingJudgeId || 0}
+            initialName={editingJudgeName}
+          />
+          <EditCriteriaModal
+            isOpen={isEditCriteriaOpen}
+            onClose={() => {
+              setIsEditCriteriaOpen(false)
+              setEditingCriteriaId(null)
+              setEditingCriteriaName('')
+              setEditingCriteriaPercentage(0)
+            }}
+            onSuccess={handleRefresh}
+            criteriaId={editingCriteriaId || 0}
+            initialName={editingCriteriaName}
+            initialPercentage={editingCriteriaPercentage}
+          />
+        </>
+      )}
     </div>
   )
 }
