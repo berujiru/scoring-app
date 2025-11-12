@@ -62,7 +62,7 @@ export const getEventById = async (req: Request, res: Response): Promise<void> =
 
 export const createEvent = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, description, userId } = req.body;
+    const { name, description, userId, active } = req.body;
 
     if (!name || !userId) {
       res.status(400).json({ error: 'name and userId are required' });
@@ -84,6 +84,8 @@ export const createEvent = async (req: Request, res: Response): Promise<void> =>
         name,
         description,
         userId: parseInt(userId),
+        // Ensure newly created events are inactive by default unless explicitly provided
+        active: active !== undefined ? Boolean(active) : false,
       },
       include: {
         user: {

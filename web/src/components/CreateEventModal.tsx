@@ -38,6 +38,8 @@ export function CreateEventModal({
         name: name.trim(),
         description: description.trim() || null,
         userId,
+        // New events should start inactive; require explicit activation/finalization
+        active: false,
       })
 
       // Reset form
