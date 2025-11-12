@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import * as judgingController from '@/controllers/judgingController';
-import { authMiddleware } from '@/middleware/errorHandler';
+import * as judgingController from '../controllers/judgingController';
+import { authMiddleware } from '../middleware/errorHandler';
 
 const router = Router();
 

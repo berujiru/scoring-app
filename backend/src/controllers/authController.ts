@@ -1,12 +1,12 @@
 import { Request, Response } from 'express';
-import { prisma } from '@/index';
+import { prisma } from '../lib/prisma';
 import {
   hashPassword,
   comparePassword,
   generateTokens,
   verifyToken,
   TokenPayload,
-} from '@/services/authService';
+} from '../services/authService';
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {

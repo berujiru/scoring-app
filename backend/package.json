@@ -2,11 +2,18 @@
   "name": "scoring-app-backend",
   "version": "1.0.0",
   "description": "Scoring App Backend with Express, Prisma, MySQL, OpenAPI and Swagger",
-  "main": "dist/index.js",
+  "main": "dist/server.js",
+  "files": [
+    "dist",
+    "prisma",
+    "package.json",
+    "package-lock.json"
+  ],
   "scripts": {
     "dev": "ts-node -r tsconfig-paths/register src/index.ts",
     "build": "tsc && tsc-alias",
-    "start": "node -r module-alias/register dist/index.js",
+    "postbuild": "node -e \"const fs = require('fs'); fs.copyFileSync('./dist/index.js', './dist/server.js')\"",
+    "start": "node -r tsconfig-paths/register dist/server.js",
     "postinstall": "npm run build",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",

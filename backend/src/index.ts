@@ -6,9 +6,9 @@ import swaggerJsdoc from 'swagger-jsdoc';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 
-// Use relative paths for route imports
-import userRoutes from './routes/users';
+// Import routes
 import authRoutes from './routes/auth';
+import userRoutes from './routes/users';
 import eventRoutes from './routes/events';
 import contestantRoutes from './routes/contestants';
 import judgeRoutes from './routes/judges';
@@ -25,14 +25,24 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 // Basic security headers
 app.use(helmet());
 
-// Allow all origins with CORS (without credentials)
-app.use(cors({
-  origin: true, // Reflects the request origin
+// CORS Configuration
+const corsOptions = {
+  origin: process.env.CLIENT_URL || 'http://localhost:3000',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   exposedHeaders: ['Content-Range', 'X-Total-Count'],
   credentials: true
-}));
+};
+
+app.use(cors(corsOptions));
+
+// Log CORS configuration for debugging
+console.log('CORS Configuration:', {
+  origin: corsOptions.origin,
+  methods: corsOptions.methods,
+  allowedHeaders: corsOptions.allowedHeaders,
+  credentials: corsOptions.credentials
+});
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

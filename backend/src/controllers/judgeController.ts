@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { prisma } from '@/index';
+import { prisma } from '../lib/prisma';
 import { v4 as uuidv4 } from 'uuid';
 
 export const createJudge = async (req: Request, res: Response): Promise<void> => {
