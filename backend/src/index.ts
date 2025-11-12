@@ -6,13 +6,14 @@ import swaggerJsdoc from 'swagger-jsdoc';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 
-import userRoutes from '@/routes/users';
-import authRoutes from '@/routes/auth';
-import eventRoutes from '@/routes/events';
-import contestantRoutes from '@/routes/contestants';
-import judgeRoutes from '@/routes/judges';
-import criteriaRoutes from '@/routes/criteria';
-import judgingRoutes from '@/routes/judging';
+// Use relative paths for route imports
+import userRoutes from './routes/users';
+import authRoutes from './routes/auth';
+import eventRoutes from './routes/events';
+import contestantRoutes from './routes/contestants';
+import judgeRoutes from './routes/judges';
+import criteriaRoutes from './routes/criteria';
+import judgingRoutes from './routes/judging';
 
 dotenv.config();
 
