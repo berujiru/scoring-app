@@ -12,9 +12,16 @@ export const getAllEvents = async (_req: Request, res: Response): Promise<void> 
             email: true,
           },
         },
-        contestants: true,
-        judges: true,
-        criteria: true,
+        _count: {
+          select: {
+            contestants: true,
+            judges: true,
+            criteria: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
       },
     });
     res.json(events);
