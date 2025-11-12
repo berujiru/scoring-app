@@ -25,12 +25,51 @@ const CLIENT_URL = process.env.CLIENT_URL;
 
 // Middleware
 app.use(helmet());
-app.use(
-  cors({
-    origin: CLIENT_URL,
-    credentials: true,
-  })
-);
+// CORS configuration
+const whitelist = [
+  CLIENT_URL,
+  ...(NODE_ENV === 'development' ? [
+    'http://localhost:5173', // Vite default
+    'http://localhost:3000', // Common frontend port
+    'http://127.0.0.1:5173', // Vite default (IPv4)
+    'http://localhost:4173', // Vite preview
+  ] : [])
+].filter(Boolean) as string[];
+
+const corsOptions = {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    // Allow requests with no origin (like mobile apps, curl, etc)
+    if (!origin && NODE_ENV !== 'production') return callback(null, true);
+    
+    if (origin && whitelist.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.warn(`Blocked by CORS: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'X-Access-Token',
+    'X-Refresh-Token'
+  ],
+  exposedHeaders: [
+    'Content-Range',
+    'X-Total-Count',
+    'X-Access-Token',
+    'X-Refresh-Token'
+  ],
+  maxAge: 86400 // 24 hours
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Enable preflight for all routes
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
