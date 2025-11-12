@@ -9,6 +9,7 @@ import Login from './pages/Login'
 import Events from './pages/Events'
 import EventDetail from './pages/EventDetail'
 import EventRankings from './pages/EventRankings'
+import CriteriaRankings from './pages/CriteriaRankings'
 import JudgeScoring from './pages/JudgeScoring'
 
 function AppContent() {
@@ -64,6 +65,14 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <EventRankings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/events/:id/rankings/criteria"
+            element={
+              <ProtectedRoute>
+                <CriteriaRankings />
               </ProtectedRoute>
             }
           />
