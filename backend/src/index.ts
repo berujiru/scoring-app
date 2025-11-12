@@ -21,13 +21,19 @@ const prisma = new PrismaClient();
 
 const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
-const CLIENT_URL = process.env.CLIENT_URL;
+// Parse CLIENT_URL to support both single URL and comma-separated URLs
+const parseClientUrls = (urls: string | undefined): string[] => {
+  if (!urls) return [];
+  return urls.split(',').map(url => url.trim()).filter(Boolean);
+};
+
+const CLIENT_URLS = parseClientUrls(process.env.CLIENT_URL);
 
 // Middleware
 app.use(helmet());
 // CORS configuration
 const whitelist = [
-  CLIENT_URL,
+  ...CLIENT_URLS,
   ...(NODE_ENV === 'development' ? [
     'http://localhost:5173', // Vite default
     'http://localhost:3000', // Common frontend port
