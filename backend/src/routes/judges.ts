@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as judgeController from '@/controllers/judgeController';
+import { authMiddleware } from '@/middleware/errorHandler';
 
 const router = Router();
 
@@ -19,7 +20,7 @@ const router = Router();
  *       200:
  *         description: List of judges
  */
-router.get('/event/:eventId', judgeController.getJudgesByEvent);
+router.get('/event/:eventId', authMiddleware, judgeController.getJudgesByEvent);
 
 /**
  * @swagger
@@ -37,7 +38,7 @@ router.get('/event/:eventId', judgeController.getJudgesByEvent);
  *       200:
  *         description: Judge found with event and contestants
  */
-router.get('/code/:code', judgeController.getJudgeByCode);
+router.get('/code/:code', authMiddleware, judgeController.getJudgeByCode);
 
 /**
  * @swagger
@@ -55,7 +56,7 @@ router.get('/code/:code', judgeController.getJudgeByCode);
  *       200:
  *         description: Judge found
  */
-router.get('/:id', judgeController.getJudgeById);
+router.get('/:id', authMiddleware, judgeController.getJudgeById);
 
 /**
  * @swagger
@@ -80,7 +81,7 @@ router.get('/:id', judgeController.getJudgeById);
  *       201:
  *         description: Judge created with unique code
  */
-router.post('/', judgeController.createJudge);
+router.post('/', authMiddleware, judgeController.createJudge);
 
 /**
  * @swagger
@@ -98,7 +99,7 @@ router.post('/', judgeController.createJudge);
  *       200:
  *         description: Judge updated
  */
-router.put('/:id', judgeController.updateJudge);
+router.put('/:id', authMiddleware, judgeController.updateJudge);
 
 /**
  * @swagger
@@ -116,6 +117,6 @@ router.put('/:id', judgeController.updateJudge);
  *       204:
  *         description: Judge deleted
  */
-router.delete('/:id', judgeController.deleteJudge);
+router.delete('/:id', authMiddleware, judgeController.deleteJudge);
 
 export default router;

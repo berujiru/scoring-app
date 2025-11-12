@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as eventController from '@/controllers/eventController';
+import { authMiddleware } from '@/middleware/errorHandler';
 
 const router = Router();
 
@@ -13,7 +14,7 @@ const router = Router();
  *       200:
  *         description: List of all events
  */
-router.get('/', eventController.getAllEvents);
+router.get('/', authMiddleware, eventController.getAllEvents);
 
 /**
  * @swagger
@@ -31,7 +32,7 @@ router.get('/', eventController.getAllEvents);
  *       200:
  *         description: Event found
  */
-router.get('/:id', eventController.getEventById);
+router.get('/:id', authMiddleware, eventController.getEventById);
 
 /**
  * @swagger
@@ -56,7 +57,7 @@ router.get('/:id', eventController.getEventById);
  *       201:
  *         description: Event created
  */
-router.post('/', eventController.createEvent);
+router.post('/', authMiddleware, eventController.createEvent);
 
 /**
  * @swagger
@@ -74,7 +75,7 @@ router.post('/', eventController.createEvent);
  *       200:
  *         description: Event updated
  */
-router.put('/:id', eventController.updateEvent);
+router.put('/:id', authMiddleware, eventController.updateEvent);
 
 /**
  * @swagger
@@ -92,6 +93,6 @@ router.put('/:id', eventController.updateEvent);
  *       204:
  *         description: Event deleted
  */
-router.delete('/:id', eventController.deleteEvent);
+router.delete('/:id', authMiddleware, eventController.deleteEvent);
 
 export default router;

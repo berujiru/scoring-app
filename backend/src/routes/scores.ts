@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as scoreController from '@/controllers/scoreController';
+import { authMiddleware } from '@/middleware/errorHandler';
 
 const router = Router();
 
@@ -19,7 +20,7 @@ const router = Router();
  *               items:
  *                 $ref: '#/components/schemas/Score'
  */
-router.get('/', scoreController.getAllScores);
+router.get('/', authMiddleware, scoreController.getAllScores);
 
 /**
  * @swagger
@@ -43,7 +44,7 @@ router.get('/', scoreController.getAllScores);
  *       404:
  *         description: Score not found
  */
-router.get('/:id', scoreController.getScoreById);
+router.get('/:id', authMiddleware, scoreController.getScoreById);
 
 /**
  * @swagger
@@ -74,7 +75,7 @@ router.get('/:id', scoreController.getScoreById);
  *             schema:
  *               $ref: '#/components/schemas/Score'
  */
-router.post('/', scoreController.createScore);
+router.post('/', authMiddleware, scoreController.createScore);
 
 /**
  * @swagger
@@ -109,7 +110,7 @@ router.post('/', scoreController.createScore);
  *             schema:
  *               $ref: '#/components/schemas/Score'
  */
-router.put('/:id', scoreController.updateScore);
+router.put('/:id', authMiddleware, scoreController.updateScore);
 
 /**
  * @swagger
@@ -127,7 +128,7 @@ router.put('/:id', scoreController.updateScore);
  *       204:
  *         description: Score deleted
  */
-router.delete('/:id', scoreController.deleteScore);
+router.delete('/:id', authMiddleware, scoreController.deleteScore);
 
 /**
  * @swagger
@@ -151,6 +152,6 @@ router.delete('/:id', scoreController.deleteScore);
  *               items:
  *                 $ref: '#/components/schemas/Score'
  */
-router.get('/user/:userId', scoreController.getScoresByUserId);
+router.get('/user/:userId', authMiddleware, scoreController.getScoresByUserId);
 
 export default router;

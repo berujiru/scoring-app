@@ -37,7 +37,7 @@ export const comparePassword = async (
  * Generate JWT access token
  */
 export const generateAccessToken = (payload: TokenPayload): string => {
-  return jwt.sign(payload, JWT_SECRET as string, {
+  return (jwt as any).sign(payload, JWT_SECRET, {
     expiresIn: JWT_EXPIRY,
     algorithm: 'HS256',
   });
@@ -47,7 +47,7 @@ export const generateAccessToken = (payload: TokenPayload): string => {
  * Generate JWT refresh token (longer expiry)
  */
 export const generateRefreshToken = (payload: TokenPayload): string => {
-  return jwt.sign(payload, JWT_SECRET as string, {
+  return (jwt as any).sign(payload, JWT_SECRET, {
     expiresIn: '30d',
     algorithm: 'HS256',
   });
@@ -58,7 +58,7 @@ export const generateRefreshToken = (payload: TokenPayload): string => {
  */
 export const verifyToken = (token: string): TokenPayload | null => {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET as string) as TokenPayload;
+  const decoded = (jwt as any).verify(token, JWT_SECRET) as TokenPayload;
     return decoded;
   } catch (error) {
     return null;

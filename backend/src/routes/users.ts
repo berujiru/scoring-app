@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { getAllUsers, getUserById, createUser, updateUser, deleteUser } from '@/controllers/userController';
+import { authMiddleware } from '@/middleware/errorHandler';
 
 const router = Router();
 
@@ -19,7 +20,7 @@ const router = Router();
  *               items:
  *                 $ref: '#/components/schemas/User'
  */
-router.get('/', getAllUsers);
+router.get('/', authMiddleware, getAllUsers);
 
 /**
  * @swagger
@@ -43,7 +44,7 @@ router.get('/', getAllUsers);
  *       404:
  *         description: User not found
  */
-router.get('/:id', getUserById);
+router.get('/:id', authMiddleware, getUserById);
 
 /**
  * @swagger
@@ -72,7 +73,7 @@ router.get('/:id', getUserById);
  *             schema:
  *               $ref: '#/components/schemas/User'
  */
-router.post('/', createUser);
+router.post('/', authMiddleware, createUser);
 
 /**
  * @swagger
@@ -105,7 +106,7 @@ router.post('/', createUser);
  *             schema:
  *               $ref: '#/components/schemas/User'
  */
-router.put('/:id', updateUser);
+router.put('/:id', authMiddleware, updateUser);
 
 /**
  * @swagger
@@ -123,6 +124,6 @@ router.put('/:id', updateUser);
  *       204:
  *         description: User deleted
  */
-router.delete('/:id', deleteUser);
+router.delete('/:id', authMiddleware, deleteUser);
 
 export default router;

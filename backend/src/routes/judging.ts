@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as judgingController from '@/controllers/judgingController';
+import { authMiddleware } from '@/middleware/errorHandler';
 
 const router = Router();
 
@@ -19,7 +20,7 @@ const router = Router();
  *       200:
  *         description: List of judging scores
  */
-router.get('/judge/:judgeId', judgingController.getJudgingScoresByJudge);
+router.get('/judge/:judgeId', authMiddleware, judgingController.getJudgingScoresByJudge);
 
 /**
  * @swagger
@@ -37,7 +38,7 @@ router.get('/judge/:judgeId', judgingController.getJudgingScoresByJudge);
  *       200:
  *         description: List of judging scores
  */
-router.get('/contestant/:contestantId', judgingController.getJudgingScoresByContestant);
+router.get('/contestant/:contestantId', authMiddleware, judgingController.getJudgingScoresByContestant);
 
 /**
  * @swagger
@@ -55,7 +56,7 @@ router.get('/contestant/:contestantId', judgingController.getJudgingScoresByCont
  *       200:
  *         description: List of judging scores
  */
-router.get('/event/:eventId', judgingController.getJudgingScoresByEvent);
+router.get('/event/:eventId', authMiddleware, judgingController.getJudgingScoresByEvent);
 
 /**
  * @swagger
@@ -101,7 +102,7 @@ router.get('/event/:eventId/tally', judgingController.getJudgingTallyByEvent);
  *       200:
  *         description: List of judging scores
  */
-router.get('/event/:eventId/judge/:judgeId/contestant/:contestantId', judgingController.getJudgingScoresForContestantByJudge);
+router.get('/event/:eventId/judge/:judgeId/contestant/:contestantId', authMiddleware, judgingController.getJudgingScoresForContestantByJudge);
 
 /**
  * @swagger
@@ -131,7 +132,7 @@ router.get('/event/:eventId/judge/:judgeId/contestant/:contestantId', judgingCon
  *       201:
  *         description: Judging score submitted
  */
-router.post('/', judgingController.submitJudgingScore);
+router.post('/', authMiddleware, judgingController.submitJudgingScore);
 
 /**
  * @swagger
@@ -149,6 +150,8 @@ router.post('/', judgingController.submitJudgingScore);
  *       204:
  *         description: Judging score deleted
  */
-router.delete('/:id', judgingController.deleteJudgingScore);
+router.delete('/:id', authMiddleware, judgingController.deleteJudgingScore);
+
+router.get('/event/:eventId/tally', authMiddleware, judgingController.getJudgingTallyByEvent);
 
 export default router;

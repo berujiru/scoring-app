@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as contestantController from '@/controllers/contestantController';
+import { authMiddleware } from '@/middleware/errorHandler';
 
 const router = Router();
 
@@ -19,7 +20,7 @@ const router = Router();
  *       200:
  *         description: List of contestants
  */
-router.get('/event/:eventId', contestantController.getContestantsByEvent);
+router.get('/event/:eventId', authMiddleware, contestantController.getContestantsByEvent);
 
 /**
  * @swagger
@@ -37,7 +38,7 @@ router.get('/event/:eventId', contestantController.getContestantsByEvent);
  *       200:
  *         description: Contestant found
  */
-router.get('/:id', contestantController.getContestantById);
+router.get('/:id', authMiddleware, contestantController.getContestantById);
 
 /**
  * @swagger
@@ -60,7 +61,7 @@ router.get('/:id', contestantController.getContestantById);
  *       201:
  *         description: Contestant created
  */
-router.post('/', contestantController.createContestant);
+router.post('/', authMiddleware, contestantController.createContestant);
 
 /**
  * @swagger
@@ -78,7 +79,7 @@ router.post('/', contestantController.createContestant);
  *       200:
  *         description: Contestant updated
  */
-router.put('/:id', contestantController.updateContestant);
+router.put('/:id', authMiddleware, contestantController.updateContestant);
 
 /**
  * @swagger
@@ -96,6 +97,6 @@ router.put('/:id', contestantController.updateContestant);
  *       204:
  *         description: Contestant deleted
  */
-router.delete('/:id', contestantController.deleteContestant);
+router.delete('/:id', authMiddleware, contestantController.deleteContestant);
 
 export default router;

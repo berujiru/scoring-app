@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as criteriaController from '@/controllers/criteriaController';
+import { authMiddleware } from '@/middleware/errorHandler';
 
 const router = Router();
 
@@ -19,7 +20,7 @@ const router = Router();
  *       200:
  *         description: List of criteria
  */
-router.get('/event/:eventId', criteriaController.getCriteriaByEvent);
+router.get('/event/:eventId', authMiddleware, criteriaController.getCriteriaByEvent);
 
 /**
  * @swagger
@@ -37,7 +38,7 @@ router.get('/event/:eventId', criteriaController.getCriteriaByEvent);
  *       200:
  *         description: Criteria found
  */
-router.get('/:id', criteriaController.getCriteriaById);
+router.get('/:id', authMiddleware, criteriaController.getCriteriaById);
 
 /**
  * @swagger
@@ -63,7 +64,7 @@ router.get('/:id', criteriaController.getCriteriaById);
  *       201:
  *         description: Criteria created
  */
-router.post('/', criteriaController.createCriteria);
+router.post('/', authMiddleware, criteriaController.createCriteria);
 
 /**
  * @swagger
@@ -81,7 +82,7 @@ router.post('/', criteriaController.createCriteria);
  *       200:
  *         description: Criteria updated
  */
-router.put('/:id', criteriaController.updateCriteria);
+router.put('/:id', authMiddleware, criteriaController.updateCriteria);
 
 /**
  * @swagger
@@ -99,6 +100,6 @@ router.put('/:id', criteriaController.updateCriteria);
  *       204:
  *         description: Criteria deleted
  */
-router.delete('/:id', criteriaController.deleteCriteria);
+router.delete('/:id', authMiddleware, criteriaController.deleteCriteria);
 
 export default router;
