@@ -59,6 +59,24 @@ router.get('/event/:eventId', judgingController.getJudgingScoresByEvent);
 
 /**
  * @swagger
+ * /api/judging/event/{eventId}/tally:
+ *   get:
+ *     summary: Get tally (weighted totals) of judging results for an event
+ *     tags: [Judging]
+ *     parameters:
+ *       - in: path
+ *         name: eventId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Tally per contestant with criteria breakdown
+ */
+router.get('/event/:eventId/tally', judgingController.getJudgingTallyByEvent);
+
+/**
+ * @swagger
  * /api/judging/event/{eventId}/judge/{judgeId}/contestant/{contestantId}:
  *   get:
  *     summary: Get judging scores for contestant by specific judge

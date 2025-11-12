@@ -143,6 +143,65 @@ export const getJudgingScoresByEvent = async (req: Request, res: Response): Prom
   }
 };
 
+export const getJudgingTallyByEvent = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { eventId } = req.params;
+    const eid = parseInt(eventId);
+    if (isNaN(eid)) {
+      res.status(400).json({ error: 'Invalid eventId' });
+      return;
+    }
+
+    // Fetch criteria and contestants for the event
+    const [criteriaList, contestants, rows] = await Promise.all([
+      prisma.criteria.findMany({ where: { eventId: eid } }),
+      prisma.contestant.findMany({ where: { eventId: eid } }),
+      prisma.judgingRow.findMany({
+        where: { eventId: eid },
+        include: { criteria: true, contestant: true, judge: true },
+      }),
+    ]);
+
+    // Build tally per contestant
+    const tallies = contestants.map((contestant: any) => {
+      const rowsForContestant = rows.filter((r: any) => r.contestantId === contestant.id);
+
+      const criteriaBreakdown = criteriaList.map((c: any) => {
+        const rowsForCriteria = rowsForContestant.filter((r: any) => r.criteriaId === c.id);
+        const scoresCount = rowsForCriteria.length;
+        const averageScore = scoresCount
+          ? rowsForCriteria.reduce((sum: number, r: any) => sum + r.score, 0) / scoresCount
+          : 0;
+        const weightedScore = averageScore * (c.percentage / 100);
+        return {
+          criteriaId: c.id,
+          criteriaName: c.name,
+          percentage: c.percentage,
+          averageScore,
+          weightedScore,
+          scoresCount,
+        };
+      });
+
+      const totalScore = criteriaBreakdown.reduce((s: number, cb: any) => s + cb.weightedScore, 0);
+
+      return {
+        contestantId: contestant.id,
+        contestantName: contestant.name,
+        totalScore,
+        criteriaBreakdown,
+      };
+    });
+
+    // Sort descending by totalScore
+  tallies.sort((a: any, b: any) => b.totalScore - a.totalScore);
+
+    res.json({ eventId: eid, tallies, criteria: criteriaList });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to compute judging tally' });
+  }
+};
+
 export const getJudgingScoresForContestantByJudge = async (
   req: Request,
   res: Response
