@@ -133,6 +133,10 @@ export const judgingApi = {
   // Submit a single criterion score authenticated by judge code (public)
   submitByCode: (data: { score: number; eventId: number; contestantId: number; criteriaId: number; judgeCode: string }) =>
     apiClient.post('/judging/by-code', data),
+
+  // Get existing judging scores by judge code and event (public)
+  getScoresByCode: (judgeCode: string, eventId: number) =>
+    apiClient.get(`/judging/by-code/${encodeURIComponent(judgeCode)}/event/${eventId}`),
 }
 
 // Criteria endpoints

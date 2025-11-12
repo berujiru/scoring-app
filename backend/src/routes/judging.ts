@@ -106,6 +106,60 @@ router.get('/event/:eventId/judge/:judgeId/contestant/:contestantId', authMiddle
 
 /**
  * @swagger
+ * /api/judging/by-code/{judgeCode}/event/{eventId}:
+ *   get:
+ *     summary: Get all judging scores for a judge by code and event (public)
+ *     tags: [Judging]
+ *     parameters:
+ *       - in: path
+ *         name: judgeCode
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: eventId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: List of judging scores for the judge and event
+ */
+router.get('/by-code/:judgeCode/event/:eventId', judgingController.getJudgingScoresByCodeAndEvent);
+
+/**
+ * @swagger
+ * /api/judging/by-code:
+ *   post:
+ *     summary: Submit judging score for a criterion using judge code (public)
+ *     tags: [Judging]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               score:
+ *                 type: number
+ *                 description: Score (0-100)
+ *               eventId:
+ *                 type: integer
+ *               contestantId:
+ *                 type: integer
+ *               judgeCode:
+ *                 type: string
+ *                 description: Unique code identifying the judge
+ *               criteriaId:
+ *                 type: integer
+ *     responses:
+ *       201:
+ *         description: Judging score submitted
+ */
+router.post('/by-code', judgingController.submitJudgingScoreByCode);
+
+/**
+ * @swagger
  * /api/judging:
  *   post:
  *     summary: Submit judging score for a criterion
@@ -132,9 +186,6 @@ router.get('/event/:eventId/judge/:judgeId/contestant/:contestantId', authMiddle
  *       201:
  *         description: Judging score submitted
  */
-// Allow submitting judging scores without authentication when the judge is identified by a valid code
-// Public submission by judge code
-router.post('/by-code', judgingController.submitJudgingScoreByCode);
 
 // Keep original protected endpoint for authenticated flows
 router.post('/', authMiddleware, judgingController.submitJudgingScore);
@@ -156,7 +207,5 @@ router.post('/', authMiddleware, judgingController.submitJudgingScore);
  *         description: Judging score deleted
  */
 router.delete('/:id', authMiddleware, judgingController.deleteJudgingScore);
-
-router.get('/event/:eventId/tally', authMiddleware, judgingController.getJudgingTallyByEvent);
 
 export default router;

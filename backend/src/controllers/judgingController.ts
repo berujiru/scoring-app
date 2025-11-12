@@ -310,6 +310,44 @@ export const getJudgingScoresForContestantByJudge = async (
   }
 };
 
+export const getJudgingScoresByCodeAndEvent = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { judgeCode, eventId } = req.params;
+
+    // Find judge by code
+    const judge = await prisma.judge.findUnique({ where: { code: judgeCode } });
+    if (!judge) {
+      res.status(404).json({ error: 'Judge not found' });
+      return;
+    }
+
+    // Verify judge is associated with this event
+    if (judge.eventId !== parseInt(eventId)) {
+      res.status(404).json({ error: 'Judge not associated with this event' });
+      return;
+    }
+
+    // Get all scores for this judge and event
+    const scores = await prisma.judgingRow.findMany({
+      where: {
+        judgeId: judge.id,
+        eventId: parseInt(eventId),
+      },
+      include: {
+        criteria: true,
+        contestant: true,
+      },
+    });
+
+    res.json(scores);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch judging scores' });
+  }
+};
+
 export const deleteJudgingScore = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
