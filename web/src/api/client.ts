@@ -137,6 +137,10 @@ export const judgingApi = {
   // Get existing judging scores by judge code and event (public)
   getScoresByCode: (judgeCode: string, eventId: number) =>
     apiClient.get(`/judging/by-code/${encodeURIComponent(judgeCode)}/event/${eventId}`),
+
+  // Get tally/rankings for an event
+  getTallyByEvent: (eventId: number) =>
+    apiClient.get(`/judging/event/${eventId}/tally`),
 }
 
 // Criteria endpoints
