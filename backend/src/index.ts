@@ -64,18 +64,7 @@ const swaggerOptions = {
             updatedAt: { type: 'string', format: 'date-time' },
           },
         },
-        Score: {
-          type: 'object',
-          properties: {
-            id: { type: 'integer' },
-            userId: { type: 'integer' },
-            score: { type: 'number' },
-            category: { type: 'string' },
-            notes: { type: 'string' },
-            createdAt: { type: 'string', format: 'date-time' },
-            updatedAt: { type: 'string', format: 'date-time' },
-          },
-        },
+        
       },
     },
   },

@@ -106,12 +106,9 @@ API documentation available at `http://localhost:3000/api-docs`
 
 ### Scores
 
-- `GET /api/scores` - Get all scores
-- `GET /api/scores/:id` - Get score by ID
-- `GET /api/scores/user/:userId` - Get scores by user ID
-- `POST /api/scores` - Create new score
-- `PUT /api/scores/:id` - Update score
-- `DELETE /api/scores/:id` - Delete score
+Note: This project uses `JudgingRow` as the canonical representation of judge-submitted scores.
+The legacy `/api/scores` endpoints were removed. Use the `/api/judging` endpoints to submit and
+query judging scores (per event, contestant, judge, and criteria).
 
 ## Project Structure
 
@@ -148,13 +145,7 @@ backend/
 
 ### Scores Table
 
-- `id` - Primary key (auto-increment)
-- `userId` - Foreign key to users
-- `score` - Score value
-- `category` - Score category
-- `notes` - Optional notes
-- `createdAt` - Creation timestamp
-- `updatedAt` - Last update timestamp
+Scores are stored in the `JudgingRow` table which links events, contestants, judges and criteria.
 
 ## Example Requests
 
