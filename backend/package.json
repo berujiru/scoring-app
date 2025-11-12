@@ -5,7 +5,7 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "ts-node -r tsconfig-paths/register src/index.ts",
-    "build": "tsc && copy dist\\index.js dist\\server.js",
+    "build": "tsc && cp dist/index.js dist/server.js",
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
