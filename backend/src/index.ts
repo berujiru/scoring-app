@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 
 import userRoutes from '@/routes/users';
+import authRoutes from '@/routes/auth';
 import eventRoutes from '@/routes/events';
 import contestantRoutes from '@/routes/contestants';
 import judgeRoutes from '@/routes/judges';
@@ -94,6 +95,7 @@ app.get('/health', (_req: express.Request, res: express.Response) => {
 });
 
 // API Routes
+app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/contestants', contestantRoutes);
