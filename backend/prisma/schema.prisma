@@ -1,0 +1,108 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int     @id @default(autoincrement())
+  email     String  @unique
+  name      String
+  password  String
+  role      String  @default("admin")
+  active    Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  events      Event[]
+  judges      Judge[]
+  judgingRows JudgingRow[]
+
+  @@map("users")
+}
+
+model Event {
+  id        Int     @id @default(autoincrement())
+  name      String
+  description String?
+  userId    Int
+  active    Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contestants Contestant[]
+  judges      Judge[]
+  criteria    Criteria[]
+  judgingRows JudgingRow[]
+
+  @@map("events")
+}
+
+model Contestant {
+  id        Int     @id @default(autoincrement())
+  name      String
+  eventId   Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event        Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  judgingRows JudgingRow[]
+
+  @@map("contestants")
+}
+
+model Judge {
+  id        Int     @id @default(autoincrement())
+  name      String
+  userId    Int
+  eventId   Int
+  code      String  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event       Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  judgingRows JudgingRow[]
+
+  @@map("judges")
+}
+
+model Criteria {
+  id        Int     @id @default(autoincrement())
+  name      String
+  percentage Float
+  eventId   Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event       Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  judgingRows JudgingRow[]
+
+  @@map("criteria")
+}
+
+model JudgingRow {
+  id          Int     @id @default(autoincrement())
+  score       Float
+  eventId     Int
+  contestantId Int
+  judgeId     Int
+  criteriaId  Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  event      Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  contestant Contestant @relation(fields: [contestantId], references: [id], onDelete: Cascade)
+  judge      Judge      @relation(fields: [judgeId], references: [id], onDelete: Cascade)
+  criteria   Criteria   @relation(fields: [criteriaId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [judgeId], references: [id], onDelete: Cascade)
+
+  @@map("judging_rows")
+}
