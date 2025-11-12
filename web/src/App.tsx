@@ -1,17 +1,13 @@
 import React from 'react'
-import { Routes, Route, Link, Navigate } from 'react-router-dom'
+import { Routes, Route, Link } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { useAuth } from './hooks/useAuth'
+import { ProtectedRoute } from './components/ProtectedRoute'
+import { PublicRoute } from './components/PublicRoute'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Events from './pages/Events'
 import EventDetail from './pages/EventDetail'
-
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth()
-  if (isLoading) return <div className="p-4">Loading...</div>
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" />
-}
 
 function AppContent() {
   const { isAuthenticated, user, logout } = useAuth()
@@ -37,7 +33,14 @@ function AppContent() {
       <main className="max-w-3xl mx-auto px-4 py-6">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
+          <Route
+            path="/login"
+            element={
+              <PublicRoute>
+                <Login />
+              </PublicRoute>
+            }
+          />
           <Route
             path="/events"
             element={

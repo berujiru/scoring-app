@@ -1,10 +1,11 @@
-import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 
 export default function Login() {
   const navigate = useNavigate()
-  const { login } = useAuth()
+  const location = useLocation()
+  const { login, register, isAuthenticated } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -13,18 +14,61 @@ export default function Login() {
   const [name, setName] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
 
-  const handleLogin = async (e: React.FormEvent) => {
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      const from = location.state?.from?.pathname || '/events'
+      navigate(from, { replace: true })
+    }
+  }, [isAuthenticated, navigate, location])
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    
+    // Validate inputs
+    if (!email || !password) {
+      setError('Please fill in all required fields')
+      return
+    }
+
+    if (isRegister && password !== passwordConfirm) {
+      setError('Passwords do not match')
+      return
+    }
+
+    if (isRegister && password.length < 6) {
+      setError('Password must be at least 6 characters')
+      return
+    }
+
     setIsLoading(true)
     try {
-      await login(email, password)
-      navigate('/events')
+      if (isRegister) {
+        if (!name) {
+          setError('Please enter your name')
+          setIsLoading(false)
+          return
+        }
+        await register(email, name, password, passwordConfirm)
+      } else {
+        await login(email, password)
+      }
+      // Navigation will be handled by redirect effect
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Login failed')
+      const errorMessage = err.response?.data?.error || (isRegister ? 'Registration failed' : 'Login failed')
+      setError(errorMessage)
+      console.error('Auth error:', err)
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleToggleMode = () => {
+    setIsRegister(!isRegister)
+    setError('')
+    setName('')
+    setPasswordConfirm('')
   }
 
   return (
@@ -40,42 +84,46 @@ export default function Login() {
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-3">
           {isRegister && (
             <input
-              className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100"
               placeholder="Full Name"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              disabled={isLoading}
               required={isRegister}
             />
           )}
 
           <input
-            className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100"
             placeholder="Email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            disabled={isLoading}
             required
           />
 
           <input
-            className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100"
             placeholder="Password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            disabled={isLoading}
             required
           />
 
           {isRegister && (
             <input
-              className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100"
               placeholder="Confirm Password"
               type="password"
               value={passwordConfirm}
               onChange={(e) => setPasswordConfirm(e.target.value)}
+              disabled={isLoading}
               required={isRegister}
             />
           )}
@@ -83,9 +131,18 @@ export default function Login() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-indigo-600 text-white p-3 rounded font-medium disabled:opacity-50"
+            className="w-full bg-indigo-600 text-white p-3 rounded font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-indigo-700 transition-colors"
           >
-            {isLoading ? 'Loading...' : isRegister ? 'Create Account' : 'Sign In'}
+            {isLoading ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+                {isRegister ? 'Creating Account...' : 'Signing In...'}
+              </span>
+            ) : isRegister ? (
+              'Create Account'
+            ) : (
+              'Sign In'
+            )}
           </button>
         </form>
 
@@ -94,8 +151,10 @@ export default function Login() {
             <>
               Already have an account?{' '}
               <button
-                onClick={() => setIsRegister(false)}
-                className="text-indigo-600 hover:underline"
+                type="button"
+                onClick={handleToggleMode}
+                disabled={isLoading}
+                className="text-indigo-600 hover:underline disabled:opacity-50"
               >
                 Sign In
               </button>
@@ -104,8 +163,10 @@ export default function Login() {
             <>
               Don't have an account?{' '}
               <button
-                onClick={() => setIsRegister(true)}
-                className="text-indigo-600 hover:underline"
+                type="button"
+                onClick={handleToggleMode}
+                disabled={isLoading}
+                className="text-indigo-600 hover:underline disabled:opacity-50"
               >
                 Register
               </button>

@@ -38,7 +38,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       const response = await authApi.getCurrentUser()
       setUser(response.data)
-    } catch {
+    } catch (error) {
+      // Only clear auth on actual 401 errors from getCurrentUser, not other errors
       localStorage.removeItem('accessToken')
       localStorage.removeItem('refreshToken')
       setUser(null)
@@ -48,19 +49,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const login = useCallback(async (email: string, password: string) => {
-    const response = await authApi.login(email, password)
-    const { accessToken, refreshToken, user: userData } = response.data
-    localStorage.setItem('accessToken', accessToken)
-    localStorage.setItem('refreshToken', refreshToken)
-    setUser(userData)
+      const response = await authApi.login(email, password)
+      const { tokens, user: userData } = response.data;
+      localStorage.setItem('accessToken', tokens.accessToken)
+      localStorage.setItem('refreshToken', tokens.refreshToken)
+      setUser(userData)
   }, [])
 
   const register = useCallback(
     async (email: string, name: string, password: string, passwordConfirm: string) => {
       const response = await authApi.register(email, name, password, passwordConfirm)
-      const { accessToken, refreshToken, user: userData } = response.data
-      localStorage.setItem('accessToken', accessToken)
-      localStorage.setItem('refreshToken', refreshToken)
+      const { tokens, user: userData } = response.data
+      localStorage.setItem('accessToken', tokens.accessToken)
+      localStorage.setItem('refreshToken', tokens.refreshToken)
       setUser(userData)
     },
     []

@@ -23,12 +23,18 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config
-    if (error.response?.status === 401 && !original._retry) {
+    // Don't retry auth endpoints to prevent infinite loops
+    const isAuthEndpoint = original.url?.includes('/auth/login') || original.url?.includes('/auth/register')
+    
+    if (error.response?.status === 401 && !original._retry && !isAuthEndpoint) {
       original._retry = true
       try {
-        const response = await axios.post(`${baseURL}/auth/refresh`, {}, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('refreshToken')}` },
-        })
+        const refreshToken = localStorage.getItem('refreshToken')
+        if (!refreshToken) {
+          throw new Error('No refresh token available')
+        }
+        
+        const response = await axios.post(`${baseURL}/auth/refresh`, { refreshToken })
         const { accessToken } = response.data
         localStorage.setItem('accessToken', accessToken)
         original.headers.Authorization = `Bearer ${accessToken}`
@@ -36,7 +42,10 @@ apiClient.interceptors.response.use(
       } catch {
         localStorage.removeItem('accessToken')
         localStorage.removeItem('refreshToken')
-        window.location.href = '/login'
+        // Only redirect if not already on login page
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login'
+        }
       }
     }
     return Promise.reject(error)
