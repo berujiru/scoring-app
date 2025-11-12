@@ -18,6 +18,8 @@ export default function AddCriteriaModal({
   const [percentage, setPercentage] = useState('20')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [existingTotal, setExistingTotal] = useState<number>(0)
+  const [isOverLimit, setIsOverLimit] = useState<boolean>(false)
 
   // Reset form when modal opens
   useEffect(() => {
@@ -25,6 +27,19 @@ export default function AddCriteriaModal({
       setName('')
       setPercentage('20')
       setError(null)
+      setExistingTotal(0)
+      setIsOverLimit(false)
+      // fetch existing criteria totals for event
+      ;(async () => {
+        try {
+          const res = await criteriaApi.getByEvent(eventId)
+          const items = res.data || []
+          const total = items.reduce((acc: number, it: any) => acc + (Number(it.percentage) || 0), 0)
+          setExistingTotal(total)
+        } catch (err) {
+          // ignore, leave existingTotal as 0
+        }
+      })()
     }
   }, [isOpen])
 
@@ -41,6 +56,12 @@ export default function AddCriteriaModal({
     const percentageNum = parseFloat(percentage)
     if (isNaN(percentageNum) || percentageNum < 0 || percentageNum > 100) {
       setError('Percentage must be between 0 and 100')
+      return
+    }
+
+    // Validate aggregate total does not exceed 100
+    if (existingTotal + percentageNum > 100) {
+      setError(`Total weight would exceed 100% (current total: ${existingTotal}%)`)
       return
     }
 
@@ -167,13 +188,30 @@ export default function AddCriteriaModal({
             </div>
           </div>
 
-          {/* Help Text */}
-          <div className="bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded-lg text-sm flex items-start gap-2">
-            <svg className="h-5 w-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>Set the weight percentage for this scoring criteria. Judges will score based on these criteria.</span>
-          </div>
+            {/* Totals / Warning */}
+            <div className="space-y-2">
+              <div className="text-sm">
+                <p className={existingTotal >= 100 ? 'text-red-600 font-medium' : 'text-gray-600'}>
+                  Current criteria total: <span className="font-semibold">{existingTotal}%</span>
+                </p>
+                <p className={existingTotal + Number(percentage) > 100 ? 'text-red-600 font-semibold' : 'text-gray-600'}>
+                  If added: <span className="font-semibold">{existingTotal + Number(percentage)}%</span>
+                </p>
+              </div>
+
+              {existingTotal + Number(percentage) > 100 ? (
+                <div className="mt-2 bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">
+                  Total percentage cannot exceed 100%. Adjust this value or edit existing criteria first.
+                </div>
+              ) : (
+                <div className="bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded-lg text-sm flex items-start gap-2">
+                  <svg className="h-5 w-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>Set the weight percentage for this scoring criteria. All criteria should sum to 100%.</span>
+                </div>
+              )}
+            </div>
         </form>
 
         {/* Footer */}

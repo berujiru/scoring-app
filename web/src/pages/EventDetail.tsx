@@ -273,7 +273,7 @@ export default function EventDetail() {
                                   setEditingContestantName(contestant.name)
                                   setIsEditContestantOpen(true)
                                 }}
-                                className="text-indigo-600 hover:text-indigo-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="text-indigo-600 hover:text-indigo-700 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                                 title="Edit contestant"
                               >
                                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -286,7 +286,7 @@ export default function EventDetail() {
                                   setDeletingItemId(contestant.id)
                                   setDeletingItemType('contestant')
                                 }}
-                                className="text-red-600 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="text-red-600 hover:text-red-700 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                                 title="Delete contestant"
                               >
                                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -354,7 +354,7 @@ export default function EventDetail() {
                             setEditingJudgeName(judge.name)
                             setIsEditJudgeOpen(true)
                           }}
-                          className="text-indigo-600 hover:text-indigo-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="text-indigo-600 hover:text-indigo-700 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                           title="Edit judge"
                         >
                           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -367,7 +367,7 @@ export default function EventDetail() {
                             setDeletingItemId(judge.id)
                             setDeletingItemType('judge')
                           }}
-                          className="text-red-600 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="text-red-600 hover:text-red-700 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                           title="Delete judge"
                         >
                           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -399,18 +399,44 @@ export default function EventDetail() {
       {/* Criteria Section */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="font-semibold text-gray-900">Scoring Criteria</h3>
-          {user && event.user && user.id === event.user.id && (
-            <button
-              onClick={() => setIsAddCriteriaModalOpen(true)}
-              className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 flex items-center gap-1 font-medium"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Add
-            </button>
-          )}
+          <div>
+            <h3 className="font-semibold text-gray-900">Scoring Criteria</h3>
+            <p className="text-sm text-gray-600">Total: <span className="font-medium">{(event.criteria || []).reduce((s, c) => s + (c.percentage || 0), 0)}%</span></p>
+          </div>
+          <div className="flex items-center gap-2">
+            {user && event.user && user.id === event.user.id && (
+              <>
+                <button
+                  onClick={() => setIsAddCriteriaModalOpen(true)}
+                  className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 flex items-center gap-1 font-medium"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Add
+                </button>
+                <button
+                  onClick={async () => {
+                    const total = (event.criteria || []).reduce((s, c) => s + (c.percentage || 0), 0)
+                    if (total !== 100) {
+                      // show a simple alert modal (use existing delete confirmation modal pattern)
+                      alert(`Criteria total must be exactly 100% to finalize. Current total: ${total}%`)
+                      return
+                    }
+                    try {
+                      await eventsApi.update(event.id, { active: true })
+                      await handleRefresh()
+                    } catch (err) {
+                      console.error('Failed to activate event', err)
+                    }
+                  }}
+                  className="px-3 py-1 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700 flex items-center gap-1 font-medium"
+                >
+                  Finalize & Activate
+                </button>
+              </>
+            )}
+          </div>
         </div>
         {event.criteria && event.criteria.length > 0 ? (
           <div className="divide-y divide-gray-200">
@@ -441,7 +467,7 @@ export default function EventDetail() {
                           setEditingCriteriaPercentage(criterion.percentage)
                           setIsEditCriteriaOpen(true)
                         }}
-                        className="text-indigo-600 hover:text-indigo-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="text-indigo-600 hover:text-indigo-700 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                         title="Edit criteria"
                       >
                         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -454,7 +480,7 @@ export default function EventDetail() {
                           setDeletingItemId(criterion.id)
                           setDeletingItemType('criteria')
                         }}
-                        className="text-red-600 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="text-red-600 hover:text-red-700 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                         title="Delete criteria"
                       >
                         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -8,6 +8,7 @@ export interface EditCriteriaModalProps {
   criteriaId: number
   initialName: string
   initialPercentage: number
+  eventId?: number
 }
 
 export default function EditCriteriaModal({
@@ -17,6 +18,7 @@ export default function EditCriteriaModal({
   criteriaId,
   initialName,
   initialPercentage,
+  eventId,
 }: EditCriteriaModalProps) {
   const [name, setName] = useState(initialName)
   const [percentage, setPercentage] = useState(initialPercentage.toString())
@@ -31,6 +33,25 @@ export default function EditCriteriaModal({
     }
   }, [isOpen, initialName, initialPercentage])
 
+  // fetch existing total excluding the current criteria
+  const [existingTotal, setExistingTotal] = useState<number>(0)
+  useEffect(() => {
+    if (!isOpen || !eventId) return
+    ;(async () => {
+      try {
+        const res = await criteriaApi.getByEvent(eventId)
+        const items = res.data || []
+        const total = items.reduce((acc: number, it: any) => {
+          if (it.id === criteriaId) return acc
+          return acc + (Number(it.percentage) || 0)
+        }, 0)
+        setExistingTotal(total)
+      } catch (err) {
+        // ignore
+      }
+    })()
+  }, [isOpen, eventId, criteriaId])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
@@ -41,6 +62,11 @@ export default function EditCriteriaModal({
     const percentageNum = parseFloat(percentage)
     if (isNaN(percentageNum) || percentageNum < 0 || percentageNum > 100) {
       setError('Percentage must be between 0 and 100')
+      return
+    }
+    // validate aggregate total doesn't exceed 100
+    if (existingTotal + percentageNum > 100) {
+      setError(`Total weight would exceed 100% (current other total: ${existingTotal}%)`)
       return
     }
     setIsLoading(true)
@@ -94,6 +120,23 @@ export default function EditCriteriaModal({
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
+          {/* Totals / Warning */}
+          <div className="space-y-2">
+            <div className="text-sm">
+              <p className={existingTotal >= 100 ? 'text-red-600 font-medium' : 'text-gray-600'}>
+                Other criteria total: <span className="font-semibold">{existingTotal}%</span>
+              </p>
+              <p className={existingTotal + Number(percentage) > 100 ? 'text-red-600 font-semibold' : 'text-gray-600'}>
+                After edit: <span className="font-semibold">{existingTotal + Number(percentage)}%</span>
+              </p>
+            </div>
+
+            {existingTotal + Number(percentage) > 100 && (
+              <div className="mt-2 bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">
+                Total percentage cannot exceed 100%. Adjust this value or edit other criteria first.
+              </div>
+            )}
+          </div>
         </form>
         <div className="flex gap-3 px-6 py-4 border-t border-gray-200 justify-end">
           <button onClick={onClose} disabled={isLoading} className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
@@ -105,3 +148,4 @@ export default function EditCriteriaModal({
     </div>
   )
 }
+
