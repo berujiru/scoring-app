@@ -4,6 +4,7 @@ import { eventsApi, contestantsApi, judgesApi, criteriaApi } from '../api/client
 import { useAuth } from '../hooks/useAuth'
 import { EventCardData } from '../components/EventCard'
 import EditEventModal from '../components/EditEventModal'
+import QRCode from 'react-qr-code'
 import AddContestantModal from '../components/AddContestantModal'
 import AddJudgeModal from '../components/AddJudgeModal'
 import AddCriteriaModal from '../components/AddCriteriaModal'
@@ -43,6 +44,7 @@ export default function EventDetail() {
   const [editingCriteriaId, setEditingCriteriaId] = useState<number | null>(null)
   const [editingCriteriaName, setEditingCriteriaName] = useState<string>('')
   const [editingCriteriaPercentage, setEditingCriteriaPercentage] = useState<number>(0)
+  const [qrModalJudgeId, setQrModalJudgeId] = useState<number | null>(null)
 
   useEffect(() => {
     const fetchEventDetail = async () => {
@@ -374,6 +376,16 @@ export default function EventDetail() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
                         </button>
+                        {/* QR code (public) - only visible to event owner; opens a modal for easy scanning */}
+                        <button
+                          onClick={() => setQrModalJudgeId(judge.id)}
+                          className="text-gray-500 hover:text-gray-700 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                          title="Show QR code"
+                        >
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h6v6H3V3zm0 12h6v6H3v-6zM15 3h6v6h-6V3zm0 12h6v6h-6v-6z" />
+                          </svg>
+                        </button>
                       </div>
                     )}
                   </div>
@@ -432,7 +444,7 @@ export default function EventDetail() {
                   }}
                   className="px-3 py-1 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700 flex items-center gap-1 font-medium"
                 >
-                  Finalize & Activate
+                  Calibrate
                 </button>
               </>
             )}
@@ -540,6 +552,60 @@ export default function EventDetail() {
       )}
 
       {/* Modals */}
+      {/* QR Modal for judge scoring link (public, easy to scan) */}
+      {qrModalJudgeId && event && (
+        (() => {
+          const judge = event.judges?.find((j) => j.id === qrModalJudgeId)
+          if (!judge) return null
+          const url = `${window.location.origin}/judge/${encodeURIComponent(judge.code)}`
+          return (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-xl max-w-sm w-full p-6">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold">Scan to open scoring</h3>
+                    <p className="text-sm text-gray-600">Scan this QR with the judge device or open the link below.</p>
+                  </div>
+                  <button onClick={() => setQrModalJudgeId(null)} className="text-gray-500 hover:text-gray-700">
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="mt-4 flex flex-col items-center gap-4">
+                  <div className="p-2 bg-white rounded">
+                    <QRCode value={url} size={320} />
+                  </div>
+
+                  <div className="w-full">
+                    <label className="block text-xs text-gray-500 mb-1">Scoring link</label>
+                    <div className="flex items-center gap-2">
+                      <input readOnly value={url} className="flex-1 px-3 py-2 border rounded text-sm" />
+                      <button
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(url)
+                            // minimal feedback
+                            alert('Link copied to clipboard')
+                          } catch {
+                            // fallback: select
+                            const el: any = document.querySelector('input[readonly][value="' + url + '"]')
+                            if (el) el.select()
+                          }
+                        }}
+                        className="px-3 py-2 bg-indigo-600 text-white rounded text-sm"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        })()
+      )}
       {event && (
         <>
           <EditEventModal

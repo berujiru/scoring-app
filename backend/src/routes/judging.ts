@@ -132,6 +132,11 @@ router.get('/event/:eventId/judge/:judgeId/contestant/:contestantId', authMiddle
  *       201:
  *         description: Judging score submitted
  */
+// Allow submitting judging scores without authentication when the judge is identified by a valid code
+// Public submission by judge code
+router.post('/by-code', judgingController.submitJudgingScoreByCode);
+
+// Keep original protected endpoint for authenticated flows
 router.post('/', authMiddleware, judgingController.submitJudgingScore);
 
 /**

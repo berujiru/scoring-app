@@ -8,6 +8,7 @@ import Home from './pages/Home'
 import Login from './pages/Login'
 import Events from './pages/Events'
 import EventDetail from './pages/EventDetail'
+import JudgeScoring from './pages/JudgeScoring'
 
 function AppContent() {
   const { isAuthenticated, user, logout } = useAuth()
@@ -57,6 +58,8 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
+          {/* Public judge scoring link */}
+          <Route path="/judge/:code" element={<JudgeScoring />} />
         </Routes>
       </main>
     </div>

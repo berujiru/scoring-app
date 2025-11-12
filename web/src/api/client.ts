@@ -114,6 +114,10 @@ export const judgesApi = {
   getById: (id: number) =>
     apiClient.get(`/judges/${id}`),
 
+  // Public lookup by unique code (used for judge scoring links)
+  getByCode: (code: string) =>
+    apiClient.get(`/judges/code/${encodeURIComponent(code)}`),
+
   create: (data: { name: string; eventId: number; userId: number }) =>
     apiClient.post('/judges', data),
 
@@ -122,6 +126,13 @@ export const judgesApi = {
 
   delete: (id: number) =>
     apiClient.delete(`/judges/${id}`),
+}
+
+// Judging endpoints
+export const judgingApi = {
+  // Submit a single criterion score authenticated by judge code (public)
+  submitByCode: (data: { score: number; eventId: number; contestantId: number; criteriaId: number; judgeCode: string }) =>
+    apiClient.post('/judging/by-code', data),
 }
 
 // Criteria endpoints

@@ -38,7 +38,8 @@ router.get('/event/:eventId', authMiddleware, judgeController.getJudgesByEvent);
  *       200:
  *         description: Judge found with event and contestants
  */
-router.get('/code/:code', authMiddleware, judgeController.getJudgeByCode);
+// Public access: allow judges to access scoring link via unique code without authentication
+router.get('/code/:code', judgeController.getJudgeByCode);
 
 /**
  * @swagger

@@ -81,6 +81,90 @@ export const submitJudgingScore = async (req: Request, res: Response): Promise<v
   }
 };
 
+export const submitJudgingScoreByCode = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { score, eventId, contestantId, criteriaId, judgeCode } = req.body;
+
+    if (score === undefined || !eventId || !contestantId || !criteriaId || !judgeCode) {
+      res.status(400).json({
+        error: 'score, eventId, contestantId, criteriaId and judgeCode are required',
+      });
+      return;
+    }
+
+    if (score < 0 || score > 100) {
+      res.status(400).json({ error: 'score must be between 0 and 100' });
+      return;
+    }
+
+    // Find judge by code
+    const judge = await prisma.judge.findUnique({ where: { code: judgeCode } });
+    if (!judge) {
+      res.status(404).json({ error: 'Judge not found' });
+      return;
+    }
+
+    // Verify all entities exist and belong to the same event
+    const [event, contestant, criteria] = await Promise.all([
+      prisma.event.findUnique({ where: { id: parseInt(eventId) } }),
+      prisma.contestant.findUnique({ where: { id: parseInt(contestantId) } }),
+      prisma.criteria.findUnique({ where: { id: parseInt(criteriaId) } }),
+    ]);
+
+    if (!event) {
+      res.status(404).json({ error: 'Event not found' });
+      return;
+    }
+
+    if (!contestant || contestant.eventId !== parseInt(eventId)) {
+      res.status(404).json({ error: 'Contestant not found in this event' });
+      return;
+    }
+
+    if (judge.eventId !== parseInt(eventId)) {
+      res.status(404).json({ error: 'Judge not associated with this event' });
+      return;
+    }
+
+    if (!criteria || criteria.eventId !== parseInt(eventId)) {
+      res.status(404).json({ error: 'Criteria not found in this event' });
+      return;
+    }
+
+    // Check if score already exists, update or create
+    const existingScore = await prisma.judgingRow.findFirst({
+      where: {
+        eventId: parseInt(eventId),
+        contestantId: parseInt(contestantId),
+        judgeId: judge.id,
+        criteriaId: parseInt(criteriaId),
+      },
+    });
+
+    let judgingRow;
+    if (existingScore) {
+      judgingRow = await prisma.judgingRow.update({
+        where: { id: existingScore.id },
+        data: { score: parseFloat(score) },
+      });
+    } else {
+      judgingRow = await prisma.judgingRow.create({
+        data: {
+          score: parseFloat(score),
+          eventId: parseInt(eventId),
+          contestantId: parseInt(contestantId),
+          judgeId: judge.id,
+          criteriaId: parseInt(criteriaId),
+        },
+      });
+    }
+
+    res.status(existingScore ? 200 : 201).json(judgingRow);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to submit judging score by code' });
+  }
+};
+
 export const getJudgingScoresByJudge = async (req: Request, res: Response): Promise<void> => {
   try {
     const { judgeId } = req.params;
