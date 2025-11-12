@@ -5,8 +5,9 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node -r tsconfig-paths/register src/index.ts",
-    "build": "tsc",
-    "start": "node -r tsconfig-paths/register dist/index.js",
+    "build": "tsc && tsc-alias",
+    "start": "node -r module-alias/register dist/index.js",
+    "postinstall": "npm run build",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
@@ -34,6 +35,9 @@
     "swagger-ui-express": "^5.0.0",
     "uuid": "^13.0.0"
   },
+  "_moduleAliases": {
+    "@": "./dist"
+  },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.17",
@@ -46,9 +50,11 @@
     "@typescript-eslint/eslint-plugin": "^6.17.0",
     "@typescript-eslint/parser": "^6.17.0",
     "eslint": "^8.56.0",
+    "module-alias": "^2.2.3",
     "prettier": "^3.1.1",
     "prisma": "^5.7.1",
     "ts-node": "^10.9.2",
+    "tsc-alias": "^1.8.16",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.3.3"
   }
