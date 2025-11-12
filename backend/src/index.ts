@@ -7,7 +7,11 @@ import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 
 import userRoutes from '@/routes/users';
-import scoreRoutes from '@/routes/scores';
+import eventRoutes from '@/routes/events';
+import contestantRoutes from '@/routes/contestants';
+import judgeRoutes from '@/routes/judges';
+import criteriaRoutes from '@/routes/criteria';
+import judgingRoutes from '@/routes/judging';
 
 dotenv.config();
 
@@ -91,7 +95,11 @@ app.get('/health', (_req: express.Request, res: express.Response) => {
 
 // API Routes
 app.use('/api/users', userRoutes);
-app.use('/api/scores', scoreRoutes);
+app.use('/api/events', eventRoutes);
+app.use('/api/contestants', contestantRoutes);
+app.use('/api/judges', judgeRoutes);
+app.use('/api/criteria', criteriaRoutes);
+app.use('/api/judging', judgingRoutes);
 
 // 404 Handler
 app.use((req, res) => {

@@ -20,9 +20,8 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  events      Event[]
-  judges      Judge[]
-  judgingRows JudgingRow[]
+  events Event[]
+  judges Judge[]
 
   @@map("users")
 }
@@ -102,7 +101,6 @@ model JudgingRow {
   contestant Contestant @relation(fields: [contestantId], references: [id], onDelete: Cascade)
   judge      Judge      @relation(fields: [judgeId], references: [id], onDelete: Cascade)
   criteria   Criteria   @relation(fields: [criteriaId], references: [id], onDelete: Cascade)
-  user       User       @relation(fields: [judgeId], references: [id], onDelete: Cascade)
 
   @@map("judging_rows")
 }
