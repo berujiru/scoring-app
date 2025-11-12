@@ -1,4 +1,10 @@
-import axios from 'axios'
+import axios, { AxiosRequestConfig } from 'axios'
+
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    skipAuthRefresh?: boolean;
+  }
+}
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api'
 
@@ -7,6 +13,8 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Important for sending cookies with cross-origin requests
+  timeout: 10000, // 10 second timeout
 })
 
 // Attach auth token to requests if available
@@ -24,9 +32,16 @@ apiClient.interceptors.response.use(
   async (error) => {
     const original = error.config
     // Don't retry auth endpoints to prevent infinite loops
-    const isAuthEndpoint = original.url?.includes('/auth/login') || original.url?.includes('/auth/register')
+    const isAuthEndpoint = original?.url?.includes('/auth/login') || original?.url?.includes('/auth/register')
     
-    if (error.response?.status === 401 && !original._retry && !isAuthEndpoint) {
+    // Handle network errors
+    if (!error.response) {
+      console.error('Network Error:', error.message)
+      return Promise.reject(error)
+    }
+    
+    // Handle 401 Unauthorized
+    if (error.response?.status === 401 && !original?._retry && !isAuthEndpoint) {
       original._retry = true
       try {
         const refreshToken = localStorage.getItem('refreshToken')
@@ -34,20 +49,42 @@ apiClient.interceptors.response.use(
           throw new Error('No refresh token available')
         }
         
-        const response = await axios.post(`${baseURL}/auth/refresh`, { refreshToken })
-        const { accessToken } = response.data
+        // Use the same axios instance to maintain config
+        const response = await apiClient.post('/auth/refresh', { refreshToken }, {
+          skipAuthRefresh: true // Add custom flag to prevent infinite loops
+        })
+        
+        const { accessToken, refreshToken: newRefreshToken } = response.data
+        
+        // Update tokens
         localStorage.setItem('accessToken', accessToken)
+        if (newRefreshToken) {
+          localStorage.setItem('refreshToken', newRefreshToken)
+        }
+        
+        // Retry the original request with new token
         original.headers.Authorization = `Bearer ${accessToken}`
         return apiClient(original)
-      } catch {
+      } catch (refreshError) {
+        console.error('Token refresh failed:', refreshError)
+        // Clear auth state and redirect to login
         localStorage.removeItem('accessToken')
         localStorage.removeItem('refreshToken')
+        
         // Only redirect if not already on login page
         if (window.location.pathname !== '/login') {
-          window.location.href = '/login'
+          window.location.href = '/login?session=expired'
         }
+        return Promise.reject(refreshError)
       }
     }
+    
+    // Handle other error statuses
+    if (error.response?.status === 403) {
+      console.error('Forbidden:', error.response.data)
+      // Optionally redirect to login or show access denied
+    }
+    
     return Promise.reject(error)
   }
 )
