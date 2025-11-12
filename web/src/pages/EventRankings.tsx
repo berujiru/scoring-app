@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { judgingApi } from '../api/client'
+import { judgingApi, judgesApi } from '../api/client'
 
 interface Tally {
   eventId: number
+  judges: Array<{ id: number; name: string }>
   tallies: Array<{
     contestantId: number
     contestantName: string
@@ -15,7 +16,9 @@ interface Tally {
       averageScore: number
       weightedScore: number
       scoresCount: number
+      judgeScores?: { [judgeId: number]: number }
     }>
+    judgeOverallScores: { [judgeId: number]: { scores: number[]; average: number } }
   }>
   criteria: Array<{
     id: number
@@ -30,6 +33,8 @@ export default function EventRankings() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [expandedContestantId, setExpandedContestantId] = useState<number | null>(null)
+  const [judges, setJudges] = useState<Array<{ id: number; name: string }>>([])
+  const [showPrintPreview, setShowPrintPreview] = useState(false)
 
   useEffect(() => {
     const fetchTally = async () => {
@@ -39,6 +44,10 @@ export default function EventRankings() {
       try {
         const response = await judgingApi.getTallyByEvent(parseInt(id))
         setTally(response.data)
+        // Judges are now included in the tally response
+        if (response.data.judges) {
+          setJudges(response.data.judges)
+        }
       } catch (err: any) {
         setError(err.response?.data?.error || 'Failed to fetch rankings')
       } finally {
@@ -93,10 +102,136 @@ export default function EventRankings() {
         Back to Event
       </Link>
 
-      {/* Header */}
+      {/* Header with Print Button */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex items-start justify-between">
+        <div className="flex-1">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Event Rankings</h1>
+          <p className="text-gray-600">Final scores and detailed breakdown by criteria</p>
+        </div>
+        <button
+          onClick={() => setShowPrintPreview(!showPrintPreview)}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium flex items-center gap-2 transition-colors"
+        >
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4H7a2 2 0 01-2-2v-4a2 2 0 012-2h10a2 2 0 012 2v4a2 2 0 01-2 2zm2-5a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+          {showPrintPreview ? 'Hide Print' : 'Print'}
+        </button>
+      </div>
+
+      {/* Print Preview */}
+      {showPrintPreview && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 print:shadow-none print:border-0">
+          <div className="flex justify-end gap-2 mb-6 print:hidden">
+            <button
+              onClick={() => window.print()}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium"
+            >
+              Print Now
+            </button>
+            <button
+              onClick={() => setShowPrintPreview(false)}
+              className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-900 rounded-lg font-medium"
+            >
+              Close
+            </button>
+          </div>
+
+          {/* Printable Content */}
+          <div className="print:p-0">
+            {/* Rankings Table */}
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">FINAL RANKINGS</h2>
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="border-b-2 border-black">
+                    <th className="text-left py-2 px-2 font-bold">Rank</th>
+                    <th className="text-left py-2 px-2 font-bold">Contestant</th>
+                    {(tally?.judges || judges || [])?.map((judge) => (
+                      <th key={judge.id} className="text-center py-2 px-1 font-bold text-xs">{judge.name}</th>
+                    ))}
+                    <th className="text-right py-2 px-2 font-bold">Final Score</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tally?.tallies?.map((contestant, index) => {
+                    return (
+                      <tr key={contestant.contestantId} className="border-b border-gray-400">
+                        <td className="py-2 px-2 font-semibold">{index + 1}</td>
+                        <td className="py-2 px-2">{contestant.contestantName}</td>
+                        {(tally?.judges || judges || [])?.map((judge) => {
+                          // Collect all scores from this judge across all criteria
+                          const allScoresForJudge: number[] = [];
+                          
+                          if (contestant.criteriaBreakdown && Array.isArray(contestant.criteriaBreakdown)) {
+                            contestant.criteriaBreakdown.forEach((criteria: any) => {
+                              // Check if judgeScores exists and has data for this judge
+                              if (criteria.judgeScores && typeof criteria.judgeScores === 'object') {
+                                const judgeScore = criteria.judgeScores[judge.id];
+                                if (judgeScore !== undefined && judgeScore !== null) {
+                                  allScoresForJudge.push(Number(judgeScore));
+                                } else {
+                                  allScoresForJudge.push(0); // Missing score counts as 0
+                                }
+                              } else {
+                                allScoresForJudge.push(0); // No judgeScores data
+                              }
+                            });
+                          }
+                          
+                          // Calculate average
+                          const avgScore = allScoresForJudge.length > 0
+                            ? allScoresForJudge.reduce((sum, score) => sum + score, 0) / allScoresForJudge.length
+                            : 0;
+                          
+                          return (
+                            <td key={`${contestant.contestantId}-${judge.id}`} className="text-center py-2 px-1">
+                              {avgScore.toFixed(1)}
+                            </td>
+                          );
+                        })}
+                        <td className="py-2 px-2 text-right font-semibold">{contestant.totalScore.toFixed(2)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Judges Signature Section */}
+            <div className="mt-12 pt-8 border-t-2 border-black">
+              <h3 className="text-xl font-bold text-gray-900 mb-8">JUDGES' CERTIFICATION</h3>
+              <p className="text-sm text-gray-700 mb-8">
+                We hereby certify that the above rankings are accurate and reflect the scores awarded by all judges participating in this event.
+              </p>
+
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
+                {(tally?.judges || judges)?.length > 0 ? (
+                  (tally?.judges || judges)?.map((judge) => (
+                    <div key={judge.id}>
+                      <p className="text-sm font-medium text-gray-900 mb-12">{judge.name}</p>
+                      <div className="border-b-2 border-black mb-2"></div>
+                      <p className="text-xs text-gray-600">Judge Signature</p>
+                      <p className="text-xs text-gray-600 mt-3">Date: _______________</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-gray-600 col-span-full">No judges assigned to this event</p>
+                )}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="mt-12 pt-4 border-t-2 border-gray-400 text-center">
+              <p className="text-xs text-gray-600">Event Rankings Report</p>
+              <p className="text-xs text-gray-600">Generated on {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Event Rankings</h1>
-        <p className="text-gray-600">Final scores and detailed breakdown by criteria</p>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Rankings Summary</h2>
         <div className="mt-4 flex flex-wrap gap-3">
           <Link
             to={`/events/${id}/rankings/criteria`}

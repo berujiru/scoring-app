@@ -11,3 +11,48 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* Print Styles */
+@media print {
+  body {
+    background: white;
+    margin: 0;
+    padding: 0;
+  }
+
+  header,
+  nav,
+  button:not(.print\\:hidden),
+  .print\\:hidden,
+  a:not(.print\\:hidden),
+  .sidebar,
+  .navigation {
+    display: none !important;
+  }
+
+  main {
+    max-width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+
+  .print-container {
+    page-break-after: always;
+    margin-bottom: 2cm;
+  }
+
+  .print-page {
+    page-break-before: always;
+    padding: 2cm;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  table td, table th {
+    border: 1px solid #000;
+    padding: 8px;
+  }
+}

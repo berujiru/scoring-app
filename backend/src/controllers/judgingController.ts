@@ -236,10 +236,11 @@ export const getJudgingTallyByEvent = async (req: Request, res: Response): Promi
       return;
     }
 
-    // Fetch criteria and contestants for the event
-    const [criteriaList, contestants, rows] = await Promise.all([
+    // Fetch criteria, contestants, judges, and judging rows for the event
+    const [criteriaList, contestants, judges, rows] = await Promise.all([
       prisma.criteria.findMany({ where: { eventId: eid } }),
       prisma.contestant.findMany({ where: { eventId: eid } }),
+      prisma.judge.findMany({ where: { eventId: eid } }),
       prisma.judgingRow.findMany({
         where: { eventId: eid },
         include: { criteria: true, contestant: true, judge: true },
@@ -257,6 +258,13 @@ export const getJudgingTallyByEvent = async (req: Request, res: Response): Promi
           ? rowsForCriteria.reduce((sum: number, r: any) => sum + r.score, 0) / scoresCount
           : 0;
         const weightedScore = averageScore * (c.percentage / 100);
+        
+        // Calculate per-judge scores for this criterion
+        const judgeScores: { [judgeId: number]: number } = {};
+        rowsForCriteria.forEach((r: any) => {
+          judgeScores[r.judgeId] = r.score;
+        });
+        
         return {
           criteriaId: c.id,
           criteriaName: c.name,
@@ -264,7 +272,31 @@ export const getJudgingTallyByEvent = async (req: Request, res: Response): Promi
           averageScore,
           weightedScore,
           scoresCount,
+          judgeScores,
         };
+      });
+
+      // Calculate per-judge overall scores
+      const judgeOverallScores: { [judgeId: number]: { scores: number[]; average: number } } = {};
+      judges.forEach((judge: any) => {
+        judgeOverallScores[judge.id] = { scores: [], average: 0 };
+      });
+
+      criteriaBreakdown.forEach((criteria: any) => {
+        Object.entries(criteria.judgeScores).forEach(([judgeId, score]: [string, any]) => {
+          const jId = parseInt(judgeId);
+          if (judgeOverallScores[jId]) {
+            judgeOverallScores[jId].scores.push(score);
+          }
+        });
+      });
+
+      // Calculate averages per judge
+      Object.keys(judgeOverallScores).forEach((judgeId: string) => {
+        const scores = judgeOverallScores[parseInt(judgeId)].scores;
+        if (scores.length > 0) {
+          judgeOverallScores[parseInt(judgeId)].average = scores.reduce((a, b) => a + b, 0) / scores.length;
+        }
       });
 
       const totalScore = criteriaBreakdown.reduce((s: number, cb: any) => s + cb.weightedScore, 0);
@@ -274,13 +306,14 @@ export const getJudgingTallyByEvent = async (req: Request, res: Response): Promi
         contestantName: contestant.name,
         totalScore,
         criteriaBreakdown,
+        judgeOverallScores,
       };
     });
 
     // Sort descending by totalScore
-  tallies.sort((a: any, b: any) => b.totalScore - a.totalScore);
+    tallies.sort((a: any, b: any) => b.totalScore - a.totalScore);
 
-    res.json({ eventId: eid, tallies, criteria: criteriaList });
+    res.json({ eventId: eid, tallies, criteria: criteriaList, judges });
   } catch (error) {
     res.status(500).json({ error: 'Failed to compute judging tally' });
   }
