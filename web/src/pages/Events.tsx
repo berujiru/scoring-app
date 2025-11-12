@@ -1,9 +1,13 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useEvents } from '../hooks/useEvents'
+import { useAuth } from '../hooks/useAuth'
 import { EventCard } from '../components/EventCard'
 import { Pagination } from '../components/Pagination'
+import { CreateEventModal } from '../components/CreateEventModal'
 
 export default function Events() {
+  const { user } = useAuth()
+  const [isModalOpen, setIsModalOpen] = useState(false)
   const {
     events,
     isLoading,
@@ -13,6 +17,7 @@ export default function Events() {
     searchQuery,
     setSearchQuery,
     goToPage,
+    refetch,
   } = useEvents()
 
   return (
@@ -27,7 +32,13 @@ export default function Events() {
               : 'No events found'}
           </p>
         </div>
-        <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors">
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2"
+        >
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
           New Event
         </button>
       </div>
@@ -118,6 +129,18 @@ export default function Events() {
             />
           )}
         </>
+      )}
+
+      {/* Create Event Modal */}
+      {user && (
+        <CreateEventModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSuccess={() => {
+            refetch()
+          }}
+          userId={user.id}
+        />
       )}
     </div>
   )
