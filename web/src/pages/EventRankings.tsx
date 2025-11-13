@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { judgingApi, judgesApi } from '../api/client'
 
@@ -35,6 +35,45 @@ export default function EventRankings() {
   const [expandedContestantId, setExpandedContestantId] = useState<number | null>(null)
   const [judges, setJudges] = useState<Array<{ id: number; name: string }>>([])
   const [showPrintPreview, setShowPrintPreview] = useState(false)
+  const printableRef = useRef<HTMLDivElement | null>(null)
+
+  const handleDownloadPdf = async () => {
+    const el = printableRef.current
+    if (!el) {
+      // Fallback to print
+      window.print()
+      return
+    }
+
+    try {
+  // Dynamically import html2pdf to avoid forcing users to install it if they don't need downloads.
+  // Install with: npm install html2pdf.js
+  // Suppress TS error when types aren't present for the package
+  // @ts-ignore
+  const imported = await import('html2pdf.js')
+      // html2pdf may be the default export or the module itself
+      const html2pdf: any = imported.default || imported
+
+      const opt = {
+        margin:       0.4,
+        filename:     `Event-${id || 'unknown'}-Rankings.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+      }
+
+      // html2pdf usage: html2pdf().from(element).set(options).save()
+      // some bundles export a factory function directly
+      const runner = typeof html2pdf === 'function' ? html2pdf() : (html2pdf as any).default()
+      runner.from(el).set(opt).save()
+    } catch (err) {
+      // If import or generation fails, fallback to the browser print dialog
+      // This keeps behavior working even without the dependency installed.
+      // eslint-disable-next-line no-console
+      console.error('PDF generation failed, falling back to print():', err)
+      window.print()
+    }
+  }
 
   useEffect(() => {
     const fetchTally = async () => {
@@ -124,7 +163,7 @@ export default function EventRankings() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 print:shadow-none print:border-0">
           <div className="flex justify-end gap-2 mb-6 print:hidden">
             <button
-              onClick={() => window.print()}
+              onClick={handleDownloadPdf}
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium"
             >
               Print Now
@@ -138,7 +177,7 @@ export default function EventRankings() {
           </div>
 
           {/* Printable Content */}
-          <div className="print:p-0">
+          <div ref={printableRef} className="print:p-0">
             {/* Rankings Table */}
             <div className="mb-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">FINAL RANKINGS</h2>
