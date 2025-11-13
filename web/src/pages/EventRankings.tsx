@@ -76,6 +76,7 @@ function EventRankings() {
   const [revealedRanks, setRevealedRanks] = useState<number[]>([])
   const printableRef = useRef<HTMLDivElement | null>(null)
   const confettiRef = useRef<number | null>(null)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   
   // Initialize refs for rank tracking
   const EPS = 1e-6
@@ -131,6 +132,7 @@ function EventRankings() {
       try {
         const response = await judgingApi.getTallyByEvent(parseInt(id))
         setTally(response.data)
+        setLastUpdated(new Date())
         // Judges are now included in the tally response
         if (response.data.judges) {
           setJudges(response.data.judges)
@@ -147,10 +149,7 @@ function EventRankings() {
 
   
 
-  // Use the refs for rank tracking
-  const { current: ranksMap } = ranksMapRef
-  const { current: tiedMap } = tiedMapRef
-  const { current: rankToContestantIds } = rankToContestantIdsRef
+  // Use ref objects directly (avoid destructuring snapshots)
   
   // Get the sorted tallies from memo
   const sortedTallies = useMemo(() => {
@@ -158,10 +157,10 @@ function EventRankings() {
     
     const sorted = [...tally.tallies].sort((a, b) => b.totalScore - a.totalScore)
     
-    // Reset maps
-    ranksMapRef.current = {}
-    tiedMapRef.current = {}
-    rankToContestantIdsRef.current = {}
+    // Reset maps without changing object identity
+    Object.keys(ranksMapRef.current).forEach(k => delete ranksMapRef.current[Number(k)])
+    Object.keys(tiedMapRef.current).forEach(k => delete tiedMapRef.current[Number(k)])
+    Object.keys(rankToContestantIdsRef.current).forEach(k => delete rankToContestantIdsRef.current[Number(k)])
     
     // Calculate ranks
     if (sorted.length > 0) {
@@ -204,8 +203,22 @@ function EventRankings() {
   // Only show contestants whose ranks have been revealed
   const visibleTallies = useMemo(() => {
     if (!revealRankings) return []
-    return sortedTallies.filter(c => revealedRanks.includes(ranksMap[c.contestantId]))
-  }, [revealRankings, revealedRanks, ranksMap, sortedTallies])
+    return sortedTallies.filter(c => revealedRanks.includes(ranksMapRef.current[c.contestantId]))
+  }, [revealRankings, revealedRanks, sortedTallies])
+
+  // Sorted list of actual rank numbers present (handles ties like 1,2,2,4 without a 3)
+  const allRanks = useMemo(() => {
+    const keys = Object.keys(rankToContestantIdsRef.current).map(Number)
+    keys.sort((a, b) => a - b)
+    return keys
+  }, [sortedTallies])
+
+  // Reveal order (descending: e.g., 3 -> 2 -> 1)
+  const revealOrder = useMemo(() => {
+    const keys = Object.keys(rankToContestantIdsRef.current).map(Number)
+    keys.sort((a, b) => b - a)
+    return keys
+  }, [sortedTallies])
 
   const triggerConfetti = useCallback((rank: number) => {
     // Only trigger confetti for top 3 ranks
@@ -251,18 +264,26 @@ function EventRankings() {
   const revealNextRank = useCallback(() => {
     if (!revealRankings) {
       setRevealRankings(true)
-      setRevealedRanks([1])
-      triggerConfetti(1)
-    } else {
-      const nextRank = Math.max(...revealedRanks) + 1
-      const maxRank = Math.max(...Object.keys(rankToContestantIds).map(Number))
-      
-      if (nextRank <= maxRank) {
-        setRevealedRanks(prev => [...prev, nextRank])
-        triggerConfetti(nextRank)
+      const first = revealOrder[0]
+      if (first !== undefined) {
+        setRevealedRanks([first])
+        triggerConfetti(first)
       }
+      return
     }
-  }, [revealRankings, revealedRanks, rankToContestantIds, triggerConfetti])
+    if (revealOrder.length === 0) return
+    const next = revealOrder.find(r => !revealedRanks.includes(r))
+    if (next !== undefined) {
+      setRevealedRanks(prev => [...prev, next])
+      triggerConfetti(next)
+    }
+  }, [revealRankings, revealedRanks, revealOrder, triggerConfetti])
+
+  const revealAll = useCallback(() => {
+    if (!revealRankings) setRevealRankings(true)
+    setRevealedRanks(allRanks)
+    if (allRanks.length) triggerConfetti(allRanks[0])
+  }, [allRanks, revealRankings, triggerConfetti])
   
   const resetReveal = useCallback(() => {
     setRevealRankings(false)
@@ -271,7 +292,7 @@ function EventRankings() {
 
   const isRevealed = (contestantId: number) => {
     if (!revealRankings) return false
-    return revealedRanks.includes(ranksMap[contestantId])
+    return revealedRanks.includes(ranksMapRef.current[contestantId])
   }
 
   if (isLoading) {
@@ -323,6 +344,9 @@ function EventRankings() {
         <div className="flex-1">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Event Rankings</h1>
           <p className="text-gray-600">Final scores and detailed breakdown by criteria</p>
+          {lastUpdated && (
+            <p className="text-xs text-gray-500 mt-1">As of {lastUpdated.toLocaleDateString()} {lastUpdated.toLocaleTimeString()}</p>
+          )}
         </div>
         <button
           onClick={() => setShowPrintPreview(!showPrintPreview)}
@@ -365,7 +389,17 @@ function EventRankings() {
               </>
             )}
           </button>
-          
+
+          <button
+            onClick={revealAll}
+            className="px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-colors bg-emerald-600 hover:bg-emerald-700 text-white"
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12h18M3 6h18M3 18h18" />
+            </svg>
+            Reveal All
+          </button>
+
           {revealedRanks.length > 0 && (
             <button
               onClick={resetReveal}
@@ -415,10 +449,10 @@ function EventRankings() {
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleTallies.map((contestant, index) => {
+                  {visibleTallies.map((contestant) => {
                     const isShown = isRevealed(contestant.contestantId)
-                    const rank = ranksMap[contestant.contestantId]
-                    const isTied = tiedMap[contestant.contestantId]
+                    const rank = ranksMapRef.current[contestant.contestantId]
+                    const isTied = tiedMapRef.current[contestant.contestantId]
                     
                     return (
                       <motion.tr 
@@ -428,7 +462,7 @@ function EventRankings() {
                         animate={{ opacity: isShown ? 1 : 0, y: isShown ? 0 : 20 }}
                         transition={{ duration: 0.5, delay: rank * 0.2 }}
                       >
-                        <td className="py-2 px-2 font-semibold">{ranksMap[contestant.contestantId]}{tiedMap[contestant.contestantId] ? ' (tie)' : ''}</td>
+                        <td className="py-2 px-2 font-semibold">{ranksMapRef.current[contestant.contestantId]}{tiedMapRef.current[contestant.contestantId] ? ' (tie)' : ''}</td>
                         <td className="py-2 px-2">{contestant.contestantName}</td>
                         {(tally?.judges || judges || [])?.map((judge) => {
                           // Collect all scores from this judge across all criteria
@@ -529,7 +563,7 @@ function EventRankings() {
               {[1, 2, 3]
                 .filter((rank) => revealRankings && revealedRanks.includes(rank))
                 .map((rank) => {
-                  const contestantsForRank = sortedTallies.filter((c) => ranksMap[c.contestantId] === rank)
+                  const contestantsForRank = sortedTallies.filter((c) => ranksMapRef.current[c.contestantId] === rank)
                   const isTie = contestantsForRank.length > 1
                   const contestant = contestantsForRank[0]
                   const medalEmoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'
@@ -555,7 +589,8 @@ function EventRankings() {
             </div>
           )}
 
-          {/* Full Rankings Table (only revealed rows) */}
+          {/* Complete Rankings (shown after reveal completes) */}
+          {revealRankings && revealedRanks.length === allRanks.length && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-indigo-600 to-indigo-700">
               <h2 className="text-xl font-bold text-white">Complete Rankings</h2>
@@ -572,15 +607,15 @@ function EventRankings() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {(revealRankings ? visibleTallies : []).map((contestant) => (
+                  {sortedTallies.map((contestant) => (
                     <React.Fragment key={contestant.contestantId}>
                       <tr className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold text-gray-900">{ranksMap[contestant.contestantId]}{tiedMap[contestant.contestantId] ? ' (tie)' : ''}</span>
-                            {ranksMap[contestant.contestantId] === 1 && <span className="text-xl">🥇</span>}
-                            {ranksMap[contestant.contestantId] === 2 && <span className="text-xl">🥈</span>}
-                            {ranksMap[contestant.contestantId] === 3 && <span className="text-xl">🥉</span>}
+                            <span className="text-sm font-bold text-gray-900">{ranksMapRef.current[contestant.contestantId]}{tiedMapRef.current[contestant.contestantId] ? ' (tie)' : ''}</span>
+                            {ranksMapRef.current[contestant.contestantId] === 1 && <span className="text-xl">🥇</span>}
+                            {ranksMapRef.current[contestant.contestantId] === 2 && <span className="text-xl">🥈</span>}
+                            {ranksMapRef.current[contestant.contestantId] === 3 && <span className="text-xl">🥉</span>}
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -650,6 +685,7 @@ function EventRankings() {
               </table>
             </div>
           </div>
+          )}
 
           {/* Criteria Summary */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
