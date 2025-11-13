@@ -77,6 +77,7 @@ function EventRankings() {
   const printableRef = useRef<HTMLDivElement | null>(null)
   const confettiRef = useRef<number | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [highlightRank, setHighlightRank] = useState<number | null>(null)
   
   // Initialize refs for rank tracking
   const EPS = 1e-6
@@ -200,22 +201,25 @@ function EventRankings() {
     return sorted
   }, [tally, EPS])
 
-  // Only show contestants whose ranks have been revealed
+  // Only show contestants whose ranks have been revealed (top 3 only)
   const visibleTallies = useMemo(() => {
     if (!revealRankings) return []
-    return sortedTallies.filter(c => revealedRanks.includes(ranksMapRef.current[c.contestantId]))
+    return sortedTallies.filter(c => {
+      const r = ranksMapRef.current[c.contestantId]
+      return r <= 3 && revealedRanks.includes(r)
+    })
   }, [revealRankings, revealedRanks, sortedTallies])
 
   // Sorted list of actual rank numbers present (handles ties like 1,2,2,4 without a 3)
   const allRanks = useMemo(() => {
-    const keys = Object.keys(rankToContestantIdsRef.current).map(Number)
+    const keys = Object.keys(rankToContestantIdsRef.current).map(Number).filter(n => n <= 3)
     keys.sort((a, b) => a - b)
     return keys
   }, [sortedTallies])
 
   // Reveal order (descending: e.g., 3 -> 2 -> 1)
   const revealOrder = useMemo(() => {
-    const keys = Object.keys(rankToContestantIdsRef.current).map(Number)
+    const keys = Object.keys(rankToContestantIdsRef.current).map(Number).filter(n => n <= 3)
     keys.sort((a, b) => b - a)
     return keys
   }, [sortedTallies])
@@ -224,8 +228,12 @@ function EventRankings() {
     // Only trigger confetti for top 3 ranks
     if (rank > 3) return
     
-    const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#00ffff', '#ff00ff']
-    const end = Date.now() + 1000
+    // Nude palettes by rank
+    const gold = ['#D4AF37', '#F6E27A', '#B89000']
+    const silver = ['#C0C0C0', '#E0E0E0', '#A9A9A9']
+    const bronze = ['#CD7F32', '#E1A95F', '#A97142']
+    const colors = rank === 1 ? gold : rank === 2 ? silver : bronze
+    const end = Date.now() + 1400
     
     const interval = window.setInterval(() => {
       if (Date.now() > end) {
@@ -248,7 +256,7 @@ function EventRankings() {
         origin: { x: 1, y: 1 },
         colors: colors,
       })
-    }, 200) as unknown as number
+    }, 220) as unknown as number
     
     confettiRef.current = interval
     
@@ -258,7 +266,15 @@ function EventRankings() {
         clearInterval(confettiRef.current)
         confettiRef.current = null
       }
-    }, 1500)
+    }, 1700)
+  }, [])
+
+  const showRankHighlight = useCallback((rank: number) => {
+    setHighlightRank(rank)
+    // auto-hide after animation
+    window.setTimeout(() => {
+      setHighlightRank(null)
+    }, 2800)
   }, [])
   
   const revealNextRank = useCallback(() => {
@@ -268,6 +284,7 @@ function EventRankings() {
       if (first !== undefined) {
         setRevealedRanks([first])
         triggerConfetti(first)
+        showRankHighlight(first)
       }
       return
     }
@@ -276,8 +293,9 @@ function EventRankings() {
     if (next !== undefined) {
       setRevealedRanks(prev => [...prev, next])
       triggerConfetti(next)
+      showRankHighlight(next)
     }
-  }, [revealRankings, revealedRanks, revealOrder, triggerConfetti])
+  }, [revealRankings, revealedRanks, revealOrder, triggerConfetti, showRankHighlight])
 
   const revealAll = useCallback(() => {
     if (!revealRankings) setRevealRankings(true)
@@ -358,6 +376,47 @@ function EventRankings() {
           {showPrintPreview ? 'Hide Print' : 'Print'}
         </button>
       </div>
+
+      {/* Highlight Overlay for Rank Reveal */}
+      <AnimatePresence>
+        {highlightRank !== null && (
+          <motion.div
+            key="rank-highlight"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="text-center px-12 py-14 rounded-3xl shadow-2xl border"
+              style={{
+                backgroundColor: highlightRank === 1 ? '#FFF8E1' : highlightRank === 2 ? '#F7F7F7' : '#FFF1E6',
+                borderColor: highlightRank === 1 ? '#F3D37A' : highlightRank === 2 ? '#D9D9D9' : '#E3B07A'
+              }}
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: [0.5, 1.15, 1.05, 1], opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ duration: 0.8 }}
+            >
+              <div
+                className="text-5xl md:text-7xl font-black tracking-tight"
+                style={{ color: highlightRank === 1 ? '#B8860B' : highlightRank === 2 ? '#7A7A7A' : '#8B5A2B' }}
+              >
+                Rank {highlightRank}
+              </div>
+              <div className="mt-5 text-2xl md:text-3xl font-semibold text-gray-900">
+                {(() => {
+                  const ids = rankToContestantIdsRef.current[highlightRank] || []
+                  const names = sortedTallies
+                    .filter(c => ids.includes(c.contestantId))
+                    .map(c => c.contestantName)
+                  return names.length > 0 ? names.join(' • ') : '—'
+                })()}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Reveal Controls */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
