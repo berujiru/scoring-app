@@ -128,6 +128,43 @@ export default function EventRankings() {
     )
   }
 
+  // Compute ranks and tie information. We'll sort tallies descending by totalScore to ensure ties are adjacent.
+  // Ranking method: competition ranking ("1224" style) where tied scores share the same rank and the next rank skips.
+  const EPS = 1e-6
+  const ranksMap: Record<number, number> = {}
+  const tiedMap: Record<number, boolean> = {}
+
+  const sortedTallies = tally?.tallies ? [...tally.tallies].sort((a, b) => b.totalScore - a.totalScore) : []
+
+  if (sortedTallies.length > 0) {
+    let prevScore = NaN
+    let prevRank = 0
+    let prevId: number | null = null
+    for (let i = 0; i < sortedTallies.length; i++) {
+      const c = sortedTallies[i]
+      const s = c.totalScore
+      if (i === 0) {
+        ranksMap[c.contestantId] = 1
+        prevScore = s
+        prevRank = 1
+        prevId = c.contestantId
+      } else {
+        if (Math.abs(s - prevScore) <= EPS) {
+          // tie with previous
+          ranksMap[c.contestantId] = prevRank
+          tiedMap[c.contestantId] = true
+          if (prevId != null) tiedMap[prevId] = true
+        } else {
+          const rank = i + 1
+          ranksMap[c.contestantId] = rank
+          prevRank = rank
+        }
+        prevScore = s
+        prevId = c.contestantId
+      }
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Back Button */}
@@ -193,10 +230,10 @@ export default function EventRankings() {
                   </tr>
                 </thead>
                 <tbody>
-                  {tally?.tallies?.map((contestant, index) => {
+                  {sortedTallies.map((contestant, index) => {
                     return (
                       <tr key={contestant.contestantId} className="border-b border-gray-400">
-                        <td className="py-2 px-2 font-semibold">{index + 1}</td>
+                        <td className="py-2 px-2 font-semibold">{ranksMap[contestant.contestantId]}{tiedMap[contestant.contestantId] ? ' (tie)' : ''}</td>
                         <td className="py-2 px-2">{contestant.contestantName}</td>
                         {(tally?.judges || judges || [])?.map((judge) => {
                           // Collect all scores from this judge across all criteria
@@ -294,15 +331,16 @@ export default function EventRankings() {
           {/* Podium/Top 3 */}
           {tally.tallies.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              {tally.tallies.slice(0, 3).map((contestant, index) => {
-                const medalEmoji = index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'
-                const bgColor = index === 0 ? 'bg-yellow-50' : index === 1 ? 'bg-gray-50' : 'bg-orange-50'
-                const borderColor = index === 0 ? 'border-yellow-200' : index === 1 ? 'border-gray-300' : 'border-orange-200'
+              {sortedTallies.slice(0, 3).map((contestant, index) => {
+                const rank = ranksMap[contestant.contestantId] || (index + 1)
+                const medalEmoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'
+                const bgColor = rank === 1 ? 'bg-yellow-50' : rank === 2 ? 'bg-gray-50' : 'bg-orange-50'
+                const borderColor = rank === 1 ? 'border-yellow-200' : rank === 2 ? 'border-gray-300' : 'border-orange-200'
 
                 return (
                   <div key={contestant.contestantId} className={`${bgColor} border-2 ${borderColor} rounded-lg p-6 text-center`}>
                     <div className="text-4xl mb-2">{medalEmoji}</div>
-                    <p className="text-2xl font-bold text-gray-900">{index + 1}</p>
+                    <p className="text-2xl font-bold text-gray-900">{rank}{tiedMap[contestant.contestantId] ? ' (tie)' : ''}</p>
                     <p className="text-lg font-semibold text-gray-900 mt-2">{contestant.contestantName}</p>
                     <p className="text-3xl font-bold text-indigo-600 mt-3">{contestant.totalScore.toFixed(2)}</p>
                     <p className="text-xs text-gray-600 mt-1">Total Score</p>
@@ -329,15 +367,15 @@ export default function EventRankings() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {tally.tallies.map((contestant, index) => (
+                  {sortedTallies.map((contestant, index) => (
                     <React.Fragment key={contestant.contestantId}>
                       <tr className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold text-gray-900">{index + 1}</span>
-                            {index === 0 && <span className="text-xl">🥇</span>}
-                            {index === 1 && <span className="text-xl">🥈</span>}
-                            {index === 2 && <span className="text-xl">🥉</span>}
+                            <span className="text-sm font-bold text-gray-900">{ranksMap[contestant.contestantId]}{tiedMap[contestant.contestantId] ? ' (tie)' : ''}</span>
+                            {ranksMap[contestant.contestantId] === 1 && <span className="text-xl">🥇</span>}
+                            {ranksMap[contestant.contestantId] === 2 && <span className="text-xl">🥈</span>}
+                            {ranksMap[contestant.contestantId] === 3 && <span className="text-xl">🥉</span>}
                           </div>
                         </td>
                         <td className="px-6 py-4">
