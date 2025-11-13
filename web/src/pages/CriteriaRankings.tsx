@@ -100,6 +100,42 @@ export default function CriteriaRankings() {
     })
     .sort((a, b) => b.averageScore - a.averageScore)
 
+  // Compute ranks and tie information using competition ranking ("1224" style)
+  const EPS = 1e-6
+  const ranksMap: Record<number, number> = {}
+  const tiedMap: Record<number, boolean> = {}
+
+  if (criteriaRankings.length > 0) {
+    let prevScore = NaN
+    let prevRank = 0
+    let prevId: number | null = null
+    
+    for (let i = 0; i < criteriaRankings.length; i++) {
+      const c = criteriaRankings[i]
+      const s = c.averageScore
+      
+      if (i === 0) {
+        ranksMap[c.contestantId] = 1
+        prevScore = s
+        prevRank = 1
+        prevId = c.contestantId
+      } else {
+        if (Math.abs(s - prevScore) <= EPS) {
+          // tie with previous
+          ranksMap[c.contestantId] = prevRank
+          tiedMap[c.contestantId] = true
+          if (prevId !== null) tiedMap[prevId] = true
+        } else {
+          const rank = i + 1
+          ranksMap[c.contestantId] = rank
+          prevRank = rank
+        }
+        prevScore = s
+        prevId = c.contestantId
+      }
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Back Button */}
@@ -189,7 +225,9 @@ export default function CriteriaRankings() {
                     <tr key={contestant.contestantId} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold text-gray-900">{index + 1}</span>
+                          <span className="text-sm font-bold text-gray-900">
+                            {ranksMap[contestant.contestantId]}{tiedMap[contestant.contestantId] ? ' (tie)' : ''}
+                          </span>
                           {index === 0 && <span className="text-xl">🥇</span>}
                           {index === 1 && <span className="text-xl">🥈</span>}
                           {index === 2 && <span className="text-xl">🥉</span>}
