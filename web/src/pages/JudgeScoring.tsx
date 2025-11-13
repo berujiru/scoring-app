@@ -28,6 +28,7 @@ export default function JudgeScoring() {
   const [scores, setScores] = useState<Record<string, number>>({})
   const [saving, setSaving] = useState<Record<string, boolean>>({})
   const [saveStatus, setSaveStatus] = useState<Record<string, 'success' | 'error' | null>>({})
+  const [activeContestantId, setActiveContestantId] = useState<number | null>(null)
 
   useEffect(() => {
     const fetchJudge = async () => {
@@ -83,6 +84,13 @@ export default function JudgeScoring() {
     }
   }, [judge])
 
+  // Initialize the active contestant (first one) once data is available
+  useEffect(() => {
+    if (judge?.event?.contestants?.length && activeContestantId == null) {
+      setActiveContestantId(judge.event.contestants[0].id)
+    }
+  }, [judge, activeContestantId])
+
   const handleChange = (contestantId: number, criteriaId: number, value: string) => {
     const key = `${contestantId}-${criteriaId}`
     const num = Number(value)
@@ -124,6 +132,20 @@ export default function JudgeScoring() {
     }
   }
 
+  // Compute total weighted score for a contestant
+  const totalWeightedFor = (contestantId: number): number => {
+    if (!judge?.event?.criteria) return 0
+    let sum = 0
+    judge.event.criteria.forEach((cr: any) => {
+      const key = `${contestantId}-${cr.id}`
+      const score = scores[key]
+      if (typeof score === 'number' && !isNaN(score)) {
+        sum += (score * cr.percentage) / 100
+      }
+    })
+    return Number(sum.toFixed(2))
+  }
+
   if (loading) return <div className="py-12 text-center">Loading judge link...</div>
 
   if (error || !judge) return <div className="py-12 text-center text-red-600">{error || 'Not found'}</div>
@@ -162,9 +184,53 @@ export default function JudgeScoring() {
                 <p className="text-gray-500 text-lg">No contestants available.</p>
               </div>
             )}
-            
+
+            {/* Contestant selector: mobile dropdown + desktop tabs */}
+            {event.contestants.length > 0 && (
+              <div className="mb-4 sm:mb-6">
+                {/* Mobile: Select */}
+                <label className="block sm:hidden text-xs font-medium text-gray-700 mb-1">Select contestant</label>
+                <select
+                  className="sm:hidden w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                  value={activeContestantId ?? ''}
+                  onChange={(e) => setActiveContestantId(Number(e.target.value))}
+                >
+                  {event.contestants.map((c: any) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} — Total: {totalWeightedFor(c.id)}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Desktop: Tabs */}
+                <div className="hidden sm:flex gap-2 overflow-x-auto py-1" role="tablist" aria-label="Contestants">
+                  {event.contestants.map((c: any) => {
+                    const active = c.id === activeContestantId
+                    return (
+                      <button
+                        key={c.id}
+                        role="tab"
+                        aria-selected={active}
+                        onClick={() => setActiveContestantId(c.id)}
+                        className={`whitespace-nowrap px-4 py-2 rounded-full border-2 text-sm font-semibold transition-colors ${
+                          active
+                            ? 'bg-indigo-600 text-white border-indigo-600'
+                            : 'bg-white text-gray-800 border-gray-300 hover:bg-gray-50'
+                        }`}
+                        title={`Total: ${totalWeightedFor(c.id)}`}
+                      >
+                        {c.name}
+                        <span className="ml-2 text-xs opacity-80">({totalWeightedFor(c.id)})</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Only show the active contestant to avoid mis-scoring */}
             <div className="space-y-4 sm:space-y-8">
-              {event.contestants.map((c: any) => (
+              {(activeContestantId ? event.contestants.filter((x: any) => x.id === activeContestantId) : event.contestants).map((c: any) => (
                 <div key={c.id} className="border-2 border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
                   {/* Contestant Header */}
                   <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-4 sm:px-6 py-2 sm:py-4 border-b-2 border-gray-200">
@@ -174,6 +240,15 @@ export default function JudgeScoring() {
 
                   {/* Criteria Grid */}
                   <div className="p-3 sm:p-8 bg-white">
+                    {/* Total Weighted Summary for the contestant */}
+                    <div className="mt-4 sm:mt-6 p-3 sm:p-4 border-2 border-gray-200 rounded-lg bg-gray-50">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm sm:text-base font-semibold text-gray-800">Total Weighted Score</span>
+                        <span className="text-xl sm:text-2xl font-extrabold text-indigo-700">{totalWeightedFor(c.id)}</span>
+                      </div>
+                      <p className="text-[11px] sm:text-xs text-gray-600 mt-1">This is the sum of each criterion score multiplied by its weight. It helps you anticipate the overall total.</p>
+                    </div>
+
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
                       {event.criteria.map((cr: any) => {
                         const key = `${c.id}-${cr.id}`
@@ -185,7 +260,7 @@ export default function JudgeScoring() {
                         return (
                           <div key={cr.id} className="bg-white border border-gray-200 rounded-lg p-3 sm:p-5 hover:shadow-md transition-shadow">
                             <div className="mb-3">
-                              <label className="block text-sm sm:text-base font-semibold text-gray-900 mb-1" htmlFor={`score-${c.id}-${cr.id}`}>
+                              <label className="block text-sm sm:text-base font-semibold text-gray-900 mb-1" htmlFor={`score-{c.id}-{cr.id}`}>
                                 {cr.name}
                               </label>
                               <p className="text-xs sm:text-sm text-gray-600 font-medium">Weight: <span className="text-indigo-600">{cr.percentage}%</span></p>
@@ -202,7 +277,8 @@ export default function JudgeScoring() {
                                   pattern="[0-9]*"
                                   value={score}
                                   onChange={(e) => handleChange(c.id, cr.id, e.target.value)}
-                                  className="flex-1 px-3 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-base sm:text-lg font-semibold"
+                                  step={1}
+                                  className="flex-1 px-4 py-3 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg sm:text-lg font-semibold touch-manipulation"
                                   aria-label={`Score for ${c.name} - ${cr.name}`}
                                 />
                                 <span className="text-base sm:text-lg font-semibold text-gray-600 pb-2 sm:pb-3">/ 100</span>
