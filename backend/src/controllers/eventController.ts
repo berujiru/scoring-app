@@ -1,9 +1,11 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 
-export const getAllEvents = async (_req: Request, res: Response): Promise<void> => {
+export const getAllEvents = async (req: Request, res: Response): Promise<void> => {
   try {
+    const userId = (req as any).userId as number | undefined;
     const events = await prisma.event.findMany({
+      where: { userId: userId as number },
       include: {
         user: {
           select: {
@@ -33,6 +35,7 @@ export const getAllEvents = async (_req: Request, res: Response): Promise<void> 
 export const getEventById = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    const userId = (req as any).userId as number | undefined;
     const event = await prisma.event.findUnique({
       where: { id: parseInt(id) },
       include: {
@@ -49,7 +52,7 @@ export const getEventById = async (req: Request, res: Response): Promise<void> =
       },
     });
 
-    if (!event) {
+    if (!event || event.userId !== userId) {
       res.status(404).json({ error: 'Event not found' });
       return;
     }
