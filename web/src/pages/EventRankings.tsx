@@ -331,18 +331,27 @@ export default function EventRankings() {
           {/* Podium/Top 3 */}
           {tally.tallies.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              {sortedTallies.slice(0, 3).map((contestant, index) => {
-                const rank = ranksMap[contestant.contestantId] || (index + 1)
+              {[1, 2, 3].map((rank) => {
+                const contestantsForRank = sortedTallies.filter((c) => ranksMap[c.contestantId] === rank)
+                const isTie = contestantsForRank.length > 1
+                const contestant = contestantsForRank[0]
                 const medalEmoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'
                 const bgColor = rank === 1 ? 'bg-yellow-50' : rank === 2 ? 'bg-gray-50' : 'bg-orange-50'
                 const borderColor = rank === 1 ? 'border-yellow-200' : rank === 2 ? 'border-gray-300' : 'border-orange-200'
 
                 return (
-                  <div key={contestant.contestantId} className={`${bgColor} border-2 ${borderColor} rounded-lg p-6 text-center`}>
+                  <div key={rank} className={`${bgColor} border-2 ${borderColor} rounded-lg p-6 text-center`}>
                     <div className="text-4xl mb-2">{medalEmoji}</div>
-                    <p className="text-2xl font-bold text-gray-900">{rank}{tiedMap[contestant.contestantId] ? ' (tie)' : ''}</p>
-                    <p className="text-lg font-semibold text-gray-900 mt-2">{contestant.contestantName}</p>
-                    <p className="text-3xl font-bold text-indigo-600 mt-3">{contestant.totalScore.toFixed(2)}</p>
+                    <p className="text-2xl font-bold text-gray-900">{rank}{isTie ? ' (tie)' : ''}</p>
+                    {/* If this podium rank is tied, do NOT show a single winner's name — show a TIE placeholder instead */}
+                    {isTie ? (
+                      <p className="text-lg font-semibold text-gray-900 mt-2">TIE</p>
+                    ) : contestant ? (
+                      <p className="text-lg font-semibold text-gray-900 mt-2">{contestant.contestantName}</p>
+                    ) : (
+                      <p className="text-lg font-semibold text-gray-900 mt-2">-</p>
+                    )}
+                    <p className="text-3xl font-bold text-indigo-600 mt-3">{contestant ? contestant.totalScore.toFixed(2) : ''}</p>
                     <p className="text-xs text-gray-600 mt-1">Total Score</p>
                   </div>
                 )
