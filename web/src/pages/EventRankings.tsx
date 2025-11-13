@@ -508,8 +508,8 @@ function EventRankings() {
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleTallies.map((contestant) => {
-                    const isShown = isRevealed(contestant.contestantId)
+                  {sortedTallies.map((contestant) => {
+                    const isShown = true // In print preview, always show all contestants
                     const rank = ranksMapRef.current[contestant.contestantId]
                     const isTied = tiedMapRef.current[contestant.contestantId]
                     
@@ -524,33 +524,20 @@ function EventRankings() {
                         <td className="py-2 px-2 font-semibold">{ranksMapRef.current[contestant.contestantId]}{tiedMapRef.current[contestant.contestantId] ? ' (tie)' : ''}</td>
                         <td className="py-2 px-2">{contestant.contestantName}</td>
                         {(tally?.judges || judges || [])?.map((judge) => {
-                          // Collect all scores from this judge across all criteria
-                          const allScoresForJudge: number[] = [];
-                          
+                          // Weighted total per judge across criteria (align with audit): sum(score * weight%)
+                          let weightedTotal = 0;
                           if (contestant.criteriaBreakdown && Array.isArray(contestant.criteriaBreakdown)) {
                             contestant.criteriaBreakdown.forEach((criteria: any) => {
-                              // Check if judgeScores exists and has data for this judge
-                              if (criteria.judgeScores && typeof criteria.judgeScores === 'object') {
-                                const judgeScore = criteria.judgeScores[judge.id];
-                                if (judgeScore !== undefined && judgeScore !== null) {
-                                  allScoresForJudge.push(Number(judgeScore));
-                                } else {
-                                  allScoresForJudge.push(0); // Missing score counts as 0
-                                }
-                              } else {
-                                allScoresForJudge.push(0); // No judgeScores data
-                              }
+                              const pct = Number(criteria.percentage) || 0;
+                              const judgeScore = criteria.judgeScores && typeof criteria.judgeScores === 'object' ? criteria.judgeScores[judge.id] : undefined;
+                              const val = judgeScore !== undefined && judgeScore !== null ? Number(judgeScore) : 0; // treat missing as 0
+                              weightedTotal += (val * pct) / 100;
                             });
                           }
-                          
-                          // Calculate average
-                          const avgScore = allScoresForJudge.length > 0
-                            ? allScoresForJudge.reduce((sum, score) => sum + score, 0) / allScoresForJudge.length
-                            : 0;
-                          
+
                           return (
                             <td key={`${contestant.contestantId}-${judge.id}`} className="text-center py-2 px-1">
-                              {avgScore.toFixed(1)}
+                              {weightedTotal.toFixed(2)}
                             </td>
                           );
                         })}
@@ -560,6 +547,88 @@ function EventRankings() {
                   })}
                 </tbody>
               </table>
+            </div>
+
+            {/* Detailed Audit: Per-Judge Scores by Criteria */}
+            <div className="mb-10">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">DETAILED AUDIT: PER-JUDGE SCORES BY CRITERIA</h2>
+              <p className="text-xs text-gray-600 mb-4">Shows each judge's raw score per criterion, alongside the average and weighted average per criterion for auditing.</p>
+              {sortedTallies.map((contestant) => {
+                // Build quick lookup of percentages per criteria id
+                const criteriaPct: Record<number, number> = {}
+                contestant.criteriaBreakdown.forEach(c => { criteriaPct[c.criteriaId] = c.percentage })
+
+                const judgeWeightedTotals: Record<number, number> = {}
+                ;(tally?.judges || judges || []).forEach(j => { judgeWeightedTotals[j.id] = 0 })
+
+                return (
+                  <div key={`audit-${contestant.contestantId}`} className="mb-8">
+                    <div className="flex items-baseline justify-between mb-2">
+                      <h3 className="text-lg font-semibold text-gray-900">{contestant.contestantName}</h3>
+                      <div className="text-sm text-gray-700">Final Score: <span className="font-bold text-indigo-700">{contestant.totalScore.toFixed(2)}</span></div>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse text-xs">
+                        <thead>
+                          <tr className="border-b border-gray-400">
+                            <th className="text-left py-2 px-2 font-semibold">Criteria</th>
+                            <th className="text-right py-2 px-2 font-semibold">Weight %</th>
+                            {(tally?.judges || judges || []).map((j) => (
+                              <th key={`head-${contestant.contestantId}-${j.id}`} className="text-center py-2 px-2 font-semibold">{j.name}</th>
+                            ))}
+                            <th className="text-right py-2 px-2 font-semibold">Average</th>
+                            <th className="text-right py-2 px-2 font-semibold">Weighted Avg</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {contestant.criteriaBreakdown.map((criteria) => {
+                            return (
+                              <tr key={`row-${contestant.contestantId}-${criteria.criteriaId}`} className="border-b border-gray-200">
+                                <td className="py-2 px-2">{criteria.criteriaName}</td>
+                                <td className="py-2 px-2 text-right">{criteria.percentage}%</td>
+                                {(tally?.judges || judges || []).map((j) => {
+                                  const raw = criteria.judgeScores && typeof criteria.judgeScores === 'object' ? criteria.judgeScores[j.id] : undefined
+                                  const val = raw !== undefined && raw !== null ? Number(raw) : null
+                                  const pct = criteriaPct[criteria.criteriaId] || 0
+                                  const weighted = val !== null ? (val * pct) / 100 : null
+                                  if (val !== null) {
+                                    judgeWeightedTotals[j.id] += (val * pct) / 100
+                                  }
+                                  return (
+                                    <td key={`cell-${contestant.contestantId}-${criteria.criteriaId}-${j.id}`} className="py-2 px-2 text-center">
+                                      {val === null ? (
+                                        '-'
+                                      ) : (
+                                        <div className="leading-tight">
+                                          <span className="font-medium">{val.toFixed(1)}</span>
+                                          <span className="block text-[10px] text-gray-600">wt {weighted?.toFixed(2)}</span>
+                                        </div>
+                                      )}
+                                    </td>
+                                  )
+                                })}
+                                <td className="py-2 px-2 text-right">{criteria.averageScore.toFixed(2)}</td>
+                                <td className="py-2 px-2 text-right">{((criteria.averageScore * criteria.percentage) / 100).toFixed(2)}</td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                        <tfoot>
+                          <tr className="border-t-2 border-gray-400">
+                            <td className="py-2 px-2 font-semibold">Judge Weighted Totals</td>
+                            <td className="py-2 px-2"></td>
+                            {(tally?.judges || judges || []).map((j) => (
+                              <td key={`tot-${contestant.contestantId}-${j.id}`} className="py-2 px-2 text-center font-semibold">{(judgeWeightedTotals[j.id] || 0).toFixed(2)}</td>
+                            ))}
+                            <td className="py-2 px-2 text-right font-semibold">Avg Total</td>
+                            <td className="py-2 px-2 text-right font-bold text-indigo-700">{contestant.totalScore.toFixed(2)}</td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
 
             {/* Judges Signature Section */}
