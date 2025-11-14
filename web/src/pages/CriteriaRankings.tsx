@@ -170,7 +170,7 @@ export default function CriteriaRankings() {
               }`}
             >
               <p className="font-semibold text-sm text-gray-900 mb-1">{criterion.name}</p>
-              <p className="text-xs text-gray-600">Weight: {criterion.percentage}%</p>
+              <p className="text-xs text-gray-600">Max Points: {criterion.percentage}</p>
             </button>
           ))}
         </div>
@@ -182,7 +182,7 @@ export default function CriteriaRankings() {
           {/* Header for selected criteria */}
           <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 rounded-lg shadow-sm p-6 text-white">
             <h2 className="text-2xl font-bold mb-2">{selectedCriteria.name}</h2>
-            <p className="text-indigo-100">Weight: {selectedCriteria.percentage}% of final score</p>
+            <p className="text-indigo-100">Max Points: {selectedCriteria.percentage}</p>
           </div>
 
           {/* Podium */}
@@ -198,9 +198,9 @@ export default function CriteriaRankings() {
                     <div className="text-4xl mb-2">{medalEmoji}</div>
                     <p className="text-2xl font-bold text-gray-900">{index + 1}</p>
                     <p className="text-lg font-semibold text-gray-900 mt-2">{contestant.contestantName}</p>
-                    <p className="text-3xl font-bold text-indigo-600 mt-3">{contestant.averageScore.toFixed(2)}</p>
-                    <p className="text-xs text-gray-600 mt-1">Average Score</p>
-                    <p className="text-xs text-gray-600 mt-2">Weighted: {contestant.weightedScore.toFixed(2)}</p>
+                    <p className="text-3xl font-bold text-indigo-600 mt-3">{selectedCriteria.percentage ? ((contestant.averageScore / selectedCriteria.percentage) * 100).toFixed(1) : '0'}%</p>
+                    <p className="text-xs text-gray-600 mt-1">Percentage</p>
+                    <p className="text-xs text-gray-600 mt-2">Avg: {contestant.averageScore.toFixed(2)} / {selectedCriteria.percentage}</p>
                   </div>
                 )
               })}
@@ -215,8 +215,8 @@ export default function CriteriaRankings() {
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Rank</th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Contestant</th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700">Average Score</th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700">Weighted</th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700">Average Points</th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700">Max Points</th>
                     <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700">Judge Count</th>
                   </tr>
                 </thead>
@@ -239,11 +239,11 @@ export default function CriteriaRankings() {
                       <td className="px-6 py-4 text-right">
                         <div className="flex flex-col items-end">
                           <p className="text-2xl font-bold text-indigo-600">{contestant.averageScore.toFixed(2)}</p>
-                          <p className="text-xs text-gray-600">/ 100</p>
+                          <p className="text-xs text-gray-600">/ {selectedCriteria.percentage}</p>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <p className="text-lg font-semibold text-green-700">{contestant.weightedScore.toFixed(2)}</p>
+                        <p className="text-lg font-semibold text-green-700">{selectedCriteria.percentage}</p>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
@@ -270,7 +270,7 @@ export default function CriteriaRankings() {
                     <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                       <div
                         className="bg-gradient-to-r from-indigo-500 to-indigo-600 h-3 rounded-full transition-all"
-                        style={{ width: `${contestant.averageScore}%` }}
+                        style={{ width: `${selectedCriteria ? (contestant.averageScore / selectedCriteria.percentage) * 100 : 0}%` }}
                       ></div>
                     </div>
                   </div>

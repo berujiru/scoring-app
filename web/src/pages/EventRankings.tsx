@@ -86,6 +86,17 @@ function EventRankings() {
   const rankToContestantIdsRef = useRef<Record<number, number[]>>({})
   
  
+  // Compute a contestant's final score as sum of average points across criteria
+  const computeTotalPoints = useCallback((contestant: Tally['tallies'][number]) => {
+    if (!contestant?.criteriaBreakdown) return 0
+    let sum = 0
+    for (const c of contestant.criteriaBreakdown) {
+      const val = Number(c.averageScore) || 0
+      sum += val
+    }
+    return sum
+  }, [])
+
 
   const handleDownloadPdf = async () => {
     const el = printableRef.current
@@ -156,7 +167,7 @@ function EventRankings() {
   const sortedTallies = useMemo(() => {
     if (!tally?.tallies) return []
     
-    const sorted = [...tally.tallies].sort((a, b) => b.totalScore - a.totalScore)
+    const sorted = [...tally.tallies].sort((a, b) => computeTotalPoints(b) - computeTotalPoints(a))
     
     // Reset maps without changing object identity
     Object.keys(ranksMapRef.current).forEach(k => delete ranksMapRef.current[Number(k)])
@@ -171,7 +182,7 @@ function EventRankings() {
       
       for (let i = 0; i < sorted.length; i++) {
         const c = sorted[i]
-        const s = c.totalScore
+        const s = computeTotalPoints(c)
         
         if (i === 0) {
           ranksMapRef.current[c.contestantId] = 1
@@ -524,24 +535,23 @@ function EventRankings() {
                         <td className="py-2 px-2 font-semibold">{ranksMapRef.current[contestant.contestantId]}{tiedMapRef.current[contestant.contestantId] ? ' (tie)' : ''}</td>
                         <td className="py-2 px-2">{contestant.contestantName}</td>
                         {(tally?.judges || judges || [])?.map((judge) => {
-                          // Weighted total per judge across criteria (align with audit): sum(score * weight%)
-                          let weightedTotal = 0;
-                          if (contestant.criteriaBreakdown && Array.isArray(contestant.criteriaBreakdown)) {
-                            contestant.criteriaBreakdown.forEach((criteria: any) => {
-                              const pct = Number(criteria.percentage) || 0;
-                              const judgeScore = criteria.judgeScores && typeof criteria.judgeScores === 'object' ? criteria.judgeScores[judge.id] : undefined;
-                              const val = judgeScore !== undefined && judgeScore !== null ? Number(judgeScore) : 0; // treat missing as 0
-                              weightedTotal += (val * pct) / 100;
-                            });
-                          }
+                      // Total points per judge across criteria: sum of raw points
+                      let judgePointsTotal = 0;
+                      if (contestant.criteriaBreakdown && Array.isArray(contestant.criteriaBreakdown)) {
+                        contestant.criteriaBreakdown.forEach((criteria: any) => {
+                          const judgeScore = criteria.judgeScores && typeof criteria.judgeScores === 'object' ? criteria.judgeScores[judge.id] : undefined;
+                          const val = judgeScore !== undefined && judgeScore !== null ? Number(judgeScore) : 0; // treat missing as 0
+                          judgePointsTotal += val;
+                        });
+                      }
 
-                          return (
-                            <td key={`${contestant.contestantId}-${judge.id}`} className="text-center py-2 px-1">
-                              {weightedTotal.toFixed(2)}
-                            </td>
-                          );
-                        })}
-                        <td className="py-2 px-2 text-right font-semibold">{contestant.totalScore.toFixed(2)}</td>
+                      return (
+                        <td key={`${contestant.contestantId}-${judge.id}`} className="text-center py-2 px-1">
+                          {judgePointsTotal.toFixed(2)}
+                        </td>
+                      );
+                    })}
+                        <td className="py-2 px-2 text-right font-semibold">{computeTotalPoints(contestant).toFixed(2)}</td>
                       </motion.tr>
                     );
                   })}
@@ -565,7 +575,7 @@ function EventRankings() {
                   <div key={`audit-${contestant.contestantId}`} className="mb-8">
                     <div className="flex items-baseline justify-between mb-2">
                       <h3 className="text-lg font-semibold text-gray-900">{contestant.contestantName}</h3>
-                      <div className="text-sm text-gray-700">Final Score: <span className="font-bold text-indigo-700">{contestant.totalScore.toFixed(2)}</span></div>
+                      <div className="text-sm text-gray-700">Final Score: <span className="font-bold text-indigo-700">{computeTotalPoints(contestant).toFixed(2)}</span></div>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full border-collapse text-xs">
@@ -577,7 +587,7 @@ function EventRankings() {
                               <th key={`head-${contestant.contestantId}-${j.id}`} className="text-center py-2 px-2 font-semibold">{j.name}</th>
                             ))}
                             <th className="text-right py-2 px-2 font-semibold">Average</th>
-                            <th className="text-right py-2 px-2 font-semibold">Weighted Avg</th>
+                            <th className="text-right py-2 px-2 font-semibold">Average Points</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -589,10 +599,9 @@ function EventRankings() {
                                 {(tally?.judges || judges || []).map((j) => {
                                   const raw = criteria.judgeScores && typeof criteria.judgeScores === 'object' ? criteria.judgeScores[j.id] : undefined
                                   const val = raw !== undefined && raw !== null ? Number(raw) : null
-                                  const pct = criteriaPct[criteria.criteriaId] || 0
-                                  const weighted = val !== null ? (val * pct) / 100 : null
+                                  const weighted = val !== null ? val : null
                                   if (val !== null) {
-                                    judgeWeightedTotals[j.id] += (val * pct) / 100
+                                    judgeWeightedTotals[j.id] += val
                                   }
                                   return (
                                     <td key={`cell-${contestant.contestantId}-${criteria.criteriaId}-${j.id}`} className="py-2 px-2 text-center">
@@ -601,27 +610,27 @@ function EventRankings() {
                                       ) : (
                                         <div className="leading-tight">
                                           <span className="font-medium">{val.toFixed(1)}</span>
-                                          <span className="block text-[10px] text-gray-600">wt {weighted?.toFixed(2)}</span>
+                                          <span className="block text-[10px] text-gray-600">pts {weighted?.toFixed(2)}</span>
                                         </div>
                                       )}
                                     </td>
                                   )
                                 })}
                                 <td className="py-2 px-2 text-right">{criteria.averageScore.toFixed(2)}</td>
-                                <td className="py-2 px-2 text-right">{((criteria.averageScore * criteria.percentage) / 100).toFixed(2)}</td>
+                                <td className="py-2 px-2 text-right">{criteria.averageScore.toFixed(2)}</td>
                               </tr>
                             )
                           })}
                         </tbody>
                         <tfoot>
                           <tr className="border-t-2 border-gray-400">
-                            <td className="py-2 px-2 font-semibold">Judge Weighted Totals</td>
+                            <td className="py-2 px-2 font-semibold">Judge Points Totals</td>
                             <td className="py-2 px-2"></td>
                             {(tally?.judges || judges || []).map((j) => (
                               <td key={`tot-${contestant.contestantId}-${j.id}`} className="py-2 px-2 text-center font-semibold">{(judgeWeightedTotals[j.id] || 0).toFixed(2)}</td>
                             ))}
-                            <td className="py-2 px-2 text-right font-semibold">Avg Total</td>
-                            <td className="py-2 px-2 text-right font-bold text-indigo-700">{contestant.totalScore.toFixed(2)}</td>
+                            <td className="py-2 px-2 text-right font-semibold">Total Avg Points</td>
+                            <td className="py-2 px-2 text-right font-bold text-indigo-700">{computeTotalPoints(contestant).toFixed(2)}</td>
                           </tr>
                         </tfoot>
                       </table>
@@ -709,7 +718,7 @@ function EventRankings() {
                       ) : (
                         <p className="text-lg font-semibold text-gray-900 mt-2">-</p>
                       )}
-                      <p className="text-3xl font-bold text-indigo-600 mt-3">{contestant ? contestant.totalScore.toFixed(2) : ''}</p>
+                      <p className="text-3xl font-bold text-indigo-600 mt-3">{contestant ? computeTotalPoints(contestant).toFixed(2) : ''}</p>
                       <p className="text-xs text-gray-600 mt-1">Total Score</p>
                     </div>
                   )
@@ -750,7 +759,7 @@ function EventRankings() {
                           <p className="font-semibold text-gray-900">{contestant.contestantName}</p>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <p className="text-2xl font-bold text-indigo-600">{contestant.totalScore.toFixed(2)}</p>
+                          <p className="text-2xl font-bold text-indigo-600">{computeTotalPoints(contestant).toFixed(2)}</p>
                         </td>
                         <td className="px-6 py-4 text-center">
                           <button
@@ -774,24 +783,24 @@ function EventRankings() {
                                     <div className="flex items-start justify-between mb-2">
                                       <div>
                                         <p className="font-medium text-gray-900 text-sm">{criteria.criteriaName}</p>
-                                        <p className="text-xs text-gray-600">Weight: {criteria.percentage}%</p>
+                                        <p className="text-xs text-gray-600">Max Points: {criteria.percentage}</p>
                                       </div>
                                       <div className="text-right">
-                                        <p className="font-bold text-indigo-600 text-lg">{criteria.weightedScore.toFixed(2)}</p>
-                                        <p className="text-xs text-gray-600">Weighted</p>
+                                        <p className="font-bold text-indigo-600 text-lg">{criteria.averageScore.toFixed(2)}</p>
+                                        <p className="text-xs text-gray-600">Avg Points</p>
                                       </div>
                                     </div>
 
                                     <div className="space-y-2">
                                       <div>
                                         <div className="flex items-center justify-between mb-1">
-                                          <span className="text-xs text-gray-600">Average Score:</span>
-                                          <span className="text-xs font-semibold text-gray-900">{criteria.averageScore.toFixed(2)} / 100</span>
+                                          <span className="text-xs text-gray-600">Average Points:</span>
+                                          <span className="text-xs font-semibold text-gray-900">{criteria.averageScore.toFixed(2)} / {criteria.percentage}</span>
                                         </div>
                                         <div className="w-full bg-gray-200 rounded-full h-2">
                                           <div
                                             className="bg-green-500 h-2 rounded-full"
-                                            style={{ width: `${criteria.averageScore}%` }}
+                                            style={{ width: `${criteria.percentage ? (criteria.averageScore / criteria.percentage) * 100 : 0}%` }}
                                           ></div>
                                         </div>
                                       </div>

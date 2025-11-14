@@ -26,6 +26,7 @@ export default function JudgeScoring() {
   const [modalError, setModalError] = useState<string | null>(null)
   const [judge, setJudge] = useState<any | null>(null)
   const [scores, setScores] = useState<Record<string, number>>({})
+  const [submittedScores, setSubmittedScores] = useState<Record<string, number>>({})
   const [saving, setSaving] = useState<Record<string, boolean>>({})
   const [saveStatus, setSaveStatus] = useState<Record<string, 'success' | 'error' | null>>({})
   const [activeContestantId, setActiveContestantId] = useState<number | null>(null)
@@ -78,6 +79,7 @@ export default function JudgeScoring() {
         }
         
         setScores(initial)
+        setSubmittedScores(initial)
       }
       
       fetchExistingScores()
@@ -91,11 +93,11 @@ export default function JudgeScoring() {
     }
   }, [judge, activeContestantId])
 
-  const handleChange = (contestantId: number, criteriaId: number, value: string) => {
+  const handleChange = (contestantId: number, criteriaId: number, maxValue: number, value: string) => {
     const key = `${contestantId}-${criteriaId}`
     const num = Number(value)
     if (isNaN(num)) return
-    setScores((s) => ({ ...s, [key]: Math.max(0, Math.min(100, num)) }))
+    setScores((s) => ({ ...s, [key]: Math.max(0, Math.min(maxValue, num)) }))
   }
 
   const handleSubmit = async (contestantId: number, criteriaId: number) => {
@@ -114,6 +116,8 @@ export default function JudgeScoring() {
       })
       // Show success status
       setSaveStatus((s) => ({ ...s, [key]: 'success' }))
+      // Reflect submitted score into submittedScores so totals/points update only after submit
+      setSubmittedScores((prev) => ({ ...prev, [key]: score }))
       // Auto-clear success after 2 seconds
       setTimeout(() => {
         setSaveStatus((s) => ({ ...s, [key]: null }))
@@ -132,15 +136,15 @@ export default function JudgeScoring() {
     }
   }
 
-  // Compute total weighted score for a contestant
+  // Compute total points for a contestant (sum of manual weighted points per criterion)
   const totalWeightedFor = (contestantId: number): number => {
     if (!judge?.event?.criteria) return 0
     let sum = 0
     judge.event.criteria.forEach((cr: any) => {
       const key = `${contestantId}-${cr.id}`
-      const score = scores[key]
+      const score = submittedScores[key]
       if (typeof score === 'number' && !isNaN(score)) {
-        sum += (score * cr.percentage) / 100
+        sum += score
       }
     })
     return Number(sum.toFixed(2))
@@ -167,7 +171,7 @@ export default function JudgeScoring() {
             </div>
           </div>
           <p className="text-xs sm:text-sm text-gray-600 leading-relaxed p-2 sm:p-3 bg-blue-50 rounded-lg border border-blue-200">
-            <span className="font-semibold">📋</span> Authenticated by judge code. Enter scores 0-100.
+            <span className="font-semibold">📋</span> Authenticated by judge code. Enter points from 0 up to each criterion's weight.
           </p>
         </div>
 
@@ -240,21 +244,22 @@ export default function JudgeScoring() {
 
                   {/* Criteria Grid */}
                   <div className="p-3 sm:p-8 bg-white">
-                    {/* Total Weighted Summary for the contestant */}
+                    {/* Total Points Summary for the contestant */}
                     <div className="mt-4 sm:mt-6 p-3 sm:p-4 border-2 border-gray-200 rounded-lg bg-gray-50">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm sm:text-base font-semibold text-gray-800">Total Weighted Score</span>
+                        <span className="text-sm sm:text-base font-semibold text-gray-800">Total Points</span>
                         <span className="text-xl sm:text-2xl font-extrabold text-indigo-700">{totalWeightedFor(c.id)}</span>
                       </div>
-                      <p className="text-[11px] sm:text-xs text-gray-600 mt-1">This is the sum of each criterion score multiplied by its weight. It helps you anticipate the overall total.</p>
+                      <p className="text-[11px] sm:text-xs text-gray-600 mt-1">This is the sum of the points you entered per criterion. Each criterion's maximum points equal its weight.</p>
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
                       {event.criteria.map((cr: any) => {
                         const key = `${c.id}-${cr.id}`
                         const score = scores[key] ?? ''
-                        const weighted = typeof score === 'number' && !isNaN(score)
-                          ? ((score * cr.percentage) / 100).toFixed(2)
+                        const submitted = submittedScores[key]
+                        const weighted = typeof submitted === 'number' && !isNaN(submitted)
+                          ? (submitted).toFixed(2)
                           : ''
                         const status = saveStatus[key]
                         return (
@@ -263,7 +268,7 @@ export default function JudgeScoring() {
                               <label className="block text-sm sm:text-base font-semibold text-gray-900 mb-1" htmlFor={`score-{c.id}-{cr.id}`}>
                                 {cr.name}
                               </label>
-                              <p className="text-xs sm:text-sm text-gray-600 font-medium">Weight: <span className="text-indigo-600">{cr.percentage}%</span></p>
+                              <p className="text-xs sm:text-sm text-gray-600 font-medium">Max Points: <span className="text-indigo-600">{cr.percentage}</span></p>
                             </div>
 
                             <div className="space-y-2 sm:space-y-3">
@@ -272,21 +277,21 @@ export default function JudgeScoring() {
                                   id={`score-${c.id}-${cr.id}`}
                                   type="number"
                                   min={0}
-                                  max={100}
+                                  max={cr.percentage}
                                   inputMode="numeric"
                                   pattern="[0-9]*"
                                   value={score}
-                                  onChange={(e) => handleChange(c.id, cr.id, e.target.value)}
+                                  onChange={(e) => handleChange(c.id, cr.id, cr.percentage, e.target.value)}
                                   step={1}
                                   className="flex-1 px-4 py-3 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg sm:text-lg font-semibold touch-manipulation"
                                   aria-label={`Score for ${c.name} - ${cr.name}`}
                                 />
-                                <span className="text-base sm:text-lg font-semibold text-gray-600 pb-2 sm:pb-3">/ 100</span>
+                                <span className="text-base sm:text-lg font-semibold text-gray-600 pb-2 sm:pb-3">/ {cr.percentage}</span>
                               </div>
 
                               {weighted && (
                                 <div className="bg-green-50 border border-green-200 rounded-lg p-2 sm:p-3">
-                                  <p className="text-xs sm:text-sm text-gray-600">Weighted</p>
+                                  <p className="text-xs sm:text-sm text-gray-600">Points</p>
                                   <p className="text-lg sm:text-2xl font-bold text-green-700">{weighted}</p>
                                 </div>
                               )}
